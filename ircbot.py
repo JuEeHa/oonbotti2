@@ -91,13 +91,13 @@ class Keyhandler(threading.Thread):
 			c=line.split(' ')
 			if c[0]=='/j' and len(c)==2:
 				self.outc.send('JOIN '+c[1])
-			elif c[0]=='/m' and len(c)==3:
+			elif c[0]=='/m' and len(c)>2:
 				self.outc.send('PRIVMSG %s :%s'%(c[1],' '.join(c[2:])))
 			elif c[0]=='/q' and len(c)==1:
 				self.outc.send('QUIT')
 				break
 			elif c[0][0]=='/':
-				self.outc.send(c[0][1:].upper()+' '.join(c[1:]))
+				self.outc.send(c[0][1:].upper()+' '+' '.join(c[1:]))
 
 class Loghandler(threading.Thread):
 	def __init__(self,inpc):
