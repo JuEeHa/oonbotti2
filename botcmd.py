@@ -24,3 +24,6 @@ def parse((line,irc)):
 		if line[3][1:] in oprights and int(line[5])==3:
 			for chan in oprights[line[3][1:]]:
 				irc.send('MODE %s +o %s'%(chan,line[3][1:]))
+	elif line[1]=='JOIN' and line[0].split('!')[0][1:] in oprights and line[2] in oprights[line[0].split('!')[0][1:]]:
+		irc.send('PRIVMSG NickServ :ACC '+line[0].split('!')[0][1:])
+		
