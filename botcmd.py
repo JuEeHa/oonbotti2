@@ -1,4 +1,5 @@
 import eliza
+import threading
 
 doctor=eliza.eliza()
 opnicks=['nortti','nortti_','shikhin','shikhin_','shikhin__','sortiecat','martinFTW','graphitemaster','XgF','sprocklem']
@@ -8,6 +9,7 @@ for i in opnicks:
 	oprights[i]=opchans
 autoops={}
 msgs={}
+msglock=threading.Lock()
 
 def parse((line,irc)):
 	line=line.split(' ')
@@ -26,17 +28,22 @@ def parse((line,irc)):
 			irc.send('PRIVMSG %s :https://github.com/JuEeHa/oonbotti2'%chan)
 		elif line[3]==':#msg':
 			if len(line)>5:
+				msglock.acquire()
 				if line[4] not in msgs:
 					msgs[line[4]]=[]
 				msgs[line[4]].append((nick,' '.join(line[5:])))
+				msglock.release()
+				irc.send('PRIVMSG %s :Sent'%chan)
 			else:
 				irc.send('PRIVMSG %s :Usage: #msg nick message'%chan)
 		elif line[3]==':#readmsg':
+			msglock.acquire()
 			if nick in msgs:
 				for sender,msg in msgs.pop(nick):
 					irc.send('PRIVMSG %s :<%s> %s'%(chan,sender,msg))
 			else:
 				irc.send('PRIVMSG %s :You have no unread messages'%chan)
+			msglock.release()
 		elif line[3]==':#help':
 			irc.send('PRIVMSG %s :#echo #op #src #msg #readmsg #help'%chan)
 		elif line[3][1:] in ('oonbotti:', 'oonbotti', 'oonbotti,', 'oonbotti2', 'oonbotti2:', 'oonbotti2,'):
@@ -48,5 +55,7 @@ def parse((line,irc)):
 	elif line[1]=='JOIN' and nick in autoops and chan in autoops[nick]:
 		irc.send('PRIVMSG NickServ :ACC '+nick)
 	
+	msglock.acquire()
 	if (line[1]=='PRIVMSG' or line[1]=='JOIN') and nick in msgs:
 		irc.send('PRIVMSG %s :You have unread messages, read them with #readmsg'%chan)
+	msglock.release()
