@@ -1,6 +1,8 @@
 import eliza
 import threading
 
+concmd=['/q']
+
 doctor=eliza.eliza()
 opnicks=['nortti','nortti_','shikhin','shikhin_','shikhin__','sortiecat','martinFTW','graphitemaster','XgF','sprocklem']
 opchans=['#osdev-offtopic']
@@ -10,6 +12,19 @@ for i in opnicks:
 autoops={}
 msgs={}
 msglock=threading.Lock()
+
+msglock.acquire()
+f=open('msgs.txt','r')
+for line in f:
+	while len(line)>0 and line[-1]=='\n': line=line[:-1]
+	if len(line)>0:
+		receiver,sender,msg=line.split('\t')
+		if receiver not in msgs:
+			msgs[receiver]=[]
+		msgs[receiver].append((sender,msg))
+f.close()
+msglock.release()
+
 
 def parse((line,irc)):
 	line=line.split(' ')
@@ -33,7 +48,6 @@ def parse((line,irc)):
 					msgs[line[4]]=[]
 				msgs[line[4]].append((nick,' '.join(line[5:])))
 				msglock.release()
-				irc.send('PRIVMSG %s :Sent'%chan)
 			else:
 				irc.send('PRIVMSG %s :Usage: #msg nick message'%chan)
 		elif line[3]==':#readmsg':
@@ -57,5 +71,15 @@ def parse((line,irc)):
 	
 	msglock.acquire()
 	if (line[1]=='PRIVMSG' or line[1]=='JOIN') and nick in msgs:
-		irc.send('PRIVMSG %s :You have unread messages, read them with #readmsg'%chan)
+		irc.send('PRIVMSG %s :%s: You have unread messages, read them with #readmsg'%(chan,nick))
 	msglock.release()
+
+def execcmd(cmdline):
+	if cmdline[0]=='/q':
+		msglock.acquire()
+		f=open('msgs.txt','w')
+		for receiver in msgs:
+			for sender, msg in msgs[receiver]:
+					f.write('%s\t%s\t%s\n'%(receiver,sender,msg))
+		f.close()
+		msglock.release()

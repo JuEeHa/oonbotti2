@@ -89,6 +89,8 @@ class Keyhandler(threading.Thread):
 		while True:
 			line=raw_input()
 			c=line.split(' ')
+			if c[0] in botcmd.concmd:
+				botcmd.execcmd(c)
 			if c[0]=='/j' and len(c)==2:
 				self.outc.send('JOIN '+c[1])
 			elif c[0]=='/m' and len(c)>2:
@@ -96,7 +98,7 @@ class Keyhandler(threading.Thread):
 			elif c[0]=='/q' and len(c)==1:
 				self.outc.send('QUIT')
 				break
-			elif c[0][0]=='/':
+			elif c[0][0]=='/' and c[0] not in botcmd.concmd:
 				self.outc.send(c[0][1:].upper()+' '+' '.join(c[1:]))
 
 class Loghandler(threading.Thread):
