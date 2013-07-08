@@ -25,7 +25,7 @@ msglock.release()
 
 def loadtrusted():
 	trustedlock.acquire()
-	while len(trusted)>1: trusted.pop() #I'm really sorry but trusted=[] created trusted as local variable
+	while len(trusted)>0: trusted.pop() #I'm really sorry but trusted=[] created trusted as local variable
 	f=open('trusted.txt','r')
 	for line in f:
 		while len(line)>0 and line[-1]=='\n': line=line[:-1]
