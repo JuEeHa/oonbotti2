@@ -39,6 +39,8 @@ def parse((line,irc)):
 			else:
 				for name in line[4:]:
 					irc.send('PRIVMSG NickServ :ACC '+name)
+		elif line[3]==':#deop':
+			irc.send('MODE %s -o %s'%(chan,nick))
 		elif line[3]==':#src':
 			irc.send('PRIVMSG %s :https://github.com/JuEeHa/oonbotti2'%chan)
 		elif line[3]==':#msg':
@@ -59,7 +61,7 @@ def parse((line,irc)):
 				irc.send('PRIVMSG %s :You have no unread messages'%chan)
 			msglock.release()
 		elif line[3]==':#help':
-			irc.send('PRIVMSG %s :#echo #op #src #msg #readmsg #help'%chan)
+			irc.send('PRIVMSG %s :%s'%(chan,help(' '.join(line[4:]))))
 		elif line[3][1:] in ('oonbotti:', 'oonbotti', 'oonbotti,', 'oonbotti2', 'oonbotti2:', 'oonbotti2,'):
 			irc.send('PRIVMSG %s :%s: %s'%(chan,nick,doctor.respond(' '.join(line[4:]))))
 	elif line[1]=='NOTICE' and line[0].split('!')[0]==':NickServ' and  line[4]=='ACC':
@@ -83,3 +85,23 @@ def execcmd(cmdline):
 					f.write('%s\t%s\t%s\n'%(receiver,sender,msg))
 		f.close()
 		msglock.release()
+
+def help(cmd):
+	if cmd=='':
+		return '#echo #op #deop #src #msg #readmsg #help'
+	elif cmd=='#echo':
+		return '#echo text      echo text back'
+	elif cmd=='#op':
+		return '#op [nick]      give nick or yourself op rights in case nick/you is/are trusted by oonbotti2 and identified with NickServ'
+	elif cmd=='#deop':
+		return '#deop      remove your oprights (added due to irrarional demand by shikhin and sortiecat)'
+	elif cmd=='#src':
+		return '#src      paste a link to oonbotti2\'s git repo'
+	elif cmd=='#msg':
+		return '#msg nick message      send a message to nick. messages can be read with #readmsg'
+	elif cmd=='#readmsg':
+		return '#readmsg      read messages you have received'
+	elif cmd=='#help':
+		return '#help [command]      give short info of command or list commands'
+	else:
+		return 'Not found'
