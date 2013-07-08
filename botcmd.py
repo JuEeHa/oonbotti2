@@ -1,15 +1,11 @@
 import eliza
 import threading
 
-concmd=['/q','/debg']
+concmd=['/q','/lt']
 
 doctor=eliza.eliza()
-trusted=['nortti','nortti_','shikhin','shikhin_','shikhin__','sortiecat','martinFTW','graphitemaster','XgF','sprocklem']
-opchans=['#osdev-offtopic']
-oprights={}
-for i in trusted:
-	oprights[i]=opchans
-autoops={}
+trusted=[]
+trustedlock=threading.Lock()
 msgs={}
 msglock=threading.Lock()
 authcmds={}
@@ -27,14 +23,30 @@ for line in f:
 f.close()
 msglock.release()
 
+def loadtrusted():
+	trustedlock.acquire()
+	trusted=[]
+	f=open('trusted.txt','r')
+	for line in f:
+		while len(line)>0 and line[-1]=='\n': line=line[:-1]
+		if len(line)>0:
+			trusted.append(line)
+	f.close()
+	trustedlock.release()
+	
+loadtrusted()
+
 def addauthcmd(nick,cmd):
 	authcmdlock.acquire()
-	if nick not in trusted:
-		return
-	if nick not in authcmds:
-		authcmds[nick]=[]
-	authcmds[nick].append(cmd)
+	trustedlock.acquire()
+	if nick in trusted:
+		if nick not in authcmds:
+			authcmds[nick]=[]
+		authcmds[nick].append(cmd)
+	trustedlock.release()
 	authcmdlock.release()
+
+
 def parse((line,irc)):
 	line=line.split(' ')
 	nick=line[0].split('!')[0][1:]
@@ -89,14 +101,14 @@ def parse((line,irc)):
 			irc.send('PRIVMSG %s :%s: %s'%(chan,nick,doctor.respond(' '.join(line[4:]))))
 	elif line[1]=='NOTICE' and line[0].split('!')[0]==':NickServ' and  line[4]=='ACC':
 		authcmdlock.acquire()
+		trustedlock.acquire()
 		if line[3][1:] in trusted and line[3][1:] in authcmds and line[5]=='3':
 			for i in authcmds.pop(line[3][1:]):
 				irc.send(i)
 		else:
 			authcmds.pop(line[3][1:])
+		trustedlock.release()
 		authcmdlock.release()
-	elif line[1]=='JOIN' and nick in autoops and chan in autoops[nick]:
-		irc.send('PRIVMSG NickServ :ACC '+nick)
 	elif line[1]=='482':
 		irc.send('PRIVMSG %s :Not op'%line[3])
 	
@@ -114,6 +126,8 @@ def execcmd(cmdline):
 					f.write('%s\t%s\t%s\n'%(receiver,sender,msg))
 		f.close()
 		msglock.release()
+	if cmdline[0]=='/lt':
+		loadtrusted()
 
 def help(cmd):
 	if cmd=='':
