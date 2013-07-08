@@ -25,7 +25,7 @@ msglock.release()
 
 def loadtrusted():
 	trustedlock.acquire()
-	trusted=[]
+	while len(trusted)>1: trusted.pop() #I'm really sorry but trusted=[] created trusted as local variable
 	f=open('trusted.txt','r')
 	for line in f:
 		while len(line)>0 and line[-1]=='\n': line=line[:-1]
@@ -106,7 +106,8 @@ def parse((line,irc)):
 			for i in authcmds.pop(line[3][1:]):
 				irc.send(i)
 		else:
-			authcmds.pop(line[3][1:])
+			if line[3][1:] in authcmds:
+				authcmds.pop(line[3][1:])
 		trustedlock.release()
 		authcmdlock.release()
 	elif line[1]=='482':
@@ -126,7 +127,7 @@ def execcmd(cmdline):
 					f.write('%s\t%s\t%s\n'%(receiver,sender,msg))
 		f.close()
 		msglock.release()
-	if cmdline[0]=='/lt':
+	elif cmdline[0]=='/lt':
 		loadtrusted()
 
 def help(cmd):
