@@ -54,7 +54,13 @@ class Connhandler(threading.Thread):
 		
 		self.send('NICK %s'%self.nick)
 		self.send('USER %s a a :%s'%(self.nick,self.name))
-		self.send('JOIN %s'%(self.chan))
+		f=open('startcmd.txt','r')
+		for i in f:
+			if i[-1]=='\n': i=i[:-1]
+			self.send(i)
+		f.close()
+		for i in self.chan.split(' '):
+			self.send('JOIN %s'%(i))
 		
 		buf=''
 		while True:

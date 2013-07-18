@@ -97,6 +97,8 @@ def parse((line,irc)):
 			msglock.release()
 		elif line[3]==':#help':
 			irc.send('PRIVMSG %s :%s'%(chan,help(' '.join(line[4:]))))
+		elif line[3]==':#esoteric' and chan=='#esoteric':
+			irc.send('PRIVMSG %s :Nothing here'%chan)
 		elif line[3][1:] in ('oonbotti:', 'oonbotti', 'oonbotti,', 'oonbotti2', 'oonbotti2:', 'oonbotti2,'):
 			irc.send('PRIVMSG %s :%s: %s'%(chan,nick,doctor.respond(' '.join(line[4:]))))
 	elif line[1]=='NOTICE' and line[0].split('!')[0]==':NickServ' and  line[4]=='ACC':
