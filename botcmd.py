@@ -46,6 +46,13 @@ def addauthcmd(nick,cmd):
 	trustedlock.release()
 	authcmdlock.release()
 
+def chmode(irc,chan,nick,mode,args):
+	if len(args)==0:
+		addauthcmd(nick,'MODE %s %s %s'%(chan,mode,nick))
+	else:
+		for name in args:
+			addauthcmd(nick,'MODE %s %s %s'%(chan,mode,name))
+	irc.send('PRIVMSG NickServ :ACC '+nick)
 
 def parse((line,irc)):
 	line=line.split(' ')
@@ -55,21 +62,13 @@ def parse((line,irc)):
 		if line[3]==':#echo':
 			irc.send('PRIVMSG %s :%s'%(chan,' '.join(line[4:])))
 		elif line[3]==':#op':
-			if len(line)==4:
-				addauthcmd(nick,'MODE %s +o %s'%(chan,nick))
-				irc.send('PRIVMSG NickServ :ACC '+nick)
-			else:
-				for name in line[4:]:
-					addauthcmd(nick,'MODE %s +o %s'%(chan,name))
-				irc.send('PRIVMSG NickServ :ACC '+nick)
+			chmode(irc,chan,nick,'+o',line[4:])
 		elif line[3]==':#deop':
-			if len(line)==4:
-				addauthcmd(nick,'MODE %s -o %s'%(chan,nick))
-				irc.send('PRIVMSG NickServ :ACC '+nick)
-			else:
-				for name in line[4:]:
-					addauthcmd(nick,'MODE %s -o %s'%(chan,name))
-				irc.send('PRIVMSG NickServ :ACC '+nick)
+			chmode(irc,chan,nick,'-o',line[4:])
+		elif line[3]==':#voice':
+			chmode(irc,chan,nick,'+v',line[4:])
+		elif line[3]==':#devoice':
+			chmode(irc,chan,nick,'-v',line[4:])
 		elif line[3]==':#kick':
 			if len(line)>4:
 				addauthcmd(nick,'KICK %s %s :%s'%(chan,line[4],' '.join(line[5:])))
@@ -138,9 +137,13 @@ def help(cmd):
 	elif cmd=='#echo':
 		return '#echo text      echo text back'
 	elif cmd=='#op':
-		return '#op [nick]      give nick or yourself op rights in case nick/you is/are trusted by oonbotti2 and identified with NickServ'
+		return '#op [nick]      give nick or yourself op rights in case you are trusted by oonbotti2 and identified with NickServ'
 	elif cmd=='#deop':
 		return '#deop [nick]      remove your/nick\'s op rights (added due to irrational demand by shikhin and sortiecat, nick support added for same reason)'
+	elif cmd=='#voice':
+		return '#voice [nick]      give nick or yourself voice in case you are trusted by oonbotti2 and identified with NickServ'
+	elif cmd=='#devoice':
+		return '#devoice [nick]      remove your or nick\'s voice in case you are trusted by oonbotti2 and identified with NickServ'
 	elif cmd=='#kick':
 		return '#kick nick reason      kicks nick with specified reason'
 	elif cmd=='#src':
