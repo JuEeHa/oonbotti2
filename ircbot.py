@@ -48,8 +48,23 @@ class Connhandler(threading.Thread):
 			self.logc.send(line+'\n')
 			Threadwrapper(botcmd.parse,(line,self.inpc)).start()
 	def run(self):
-		self.sock=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		self.sock.connect((self.server,self.port))
+		self.sock=None
+		for af, socktype, proto, canonname, sa in socket.getaddrinfo(self.server,self.port,socket.AF_UNSPEC,socket.SOCK_STREAM):
+			try:
+				self.sock=socket.socket(af, socktype, proto)
+			except socket.error:
+				self.sock=None
+				conntinue
+			try:
+				self.sock.connect(sa)
+			except socket.error:
+				self.sock.close()
+				self.sock=None
+				continue
+			break
+		if self.sock is None:
+			self.logc.send('QUIT');
+			sys.exit(1);
 		self.sock.settimeout(0.1)
 		
 		self.send('NICK %s'%self.nick)

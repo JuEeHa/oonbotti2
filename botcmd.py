@@ -109,10 +109,24 @@ def parse((line,irc)):
 		else:
 			if line[3][1:] in authcmds:
 				authcmds.pop(line[3][1:])
+			if line[5]=='0':
+				irc.send('PRIVMSG %s :Register account with NickServ'%line[3][1:])
+			elif line[5]=='1':
+				irc.send('PRIVMSG %s :Identify with NickServ'%line[3][1:])
+			else:
+				irc.send('PRIVMSG %s :WTF, NickServ returned %s'%(line[3][1:],line[5]))
 		trustedlock.release()
 		authcmdlock.release()
 	elif line[1]=='482':
 		irc.send('PRIVMSG %s :Not op'%line[3])
+	#elif line[1]=='332' or line[1]=='TOPIC':
+	#	if line[1]=='332':
+	#		ch=line[3]
+	#		tp=' '.join(line[4:])[1:]
+	#	elif line[1]=='TOPIC':
+	#		ch=line[2]
+	#		tp=' '.join(line[3:])[1:]
+	#	#Do the magic here
 	
 	msglock.acquire()
 	if (line[1]=='PRIVMSG' or line[1]=='JOIN') and nick in msgs:
@@ -133,7 +147,7 @@ def execcmd(cmdline):
 
 def help(cmd):
 	if cmd=='':
-		return '#echo #op #deop #kick #src #msg #readmsg #help'
+		return '#echo #op #deop #voice #devoice #kick #src #msg #readmsg #help'
 	elif cmd=='#echo':
 		return '#echo text      echo text back'
 	elif cmd=='#op':
