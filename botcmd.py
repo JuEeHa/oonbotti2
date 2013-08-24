@@ -94,6 +94,9 @@ def parse((line,irc)):
 			else:
 				irc.send('PRIVMSG %s :You have no unread messages'%chan)
 			msglock.release()
+		elif line[3]==':#trusted?':
+			addauthcmd(nick,'PRIVMSG %s :%s: You are trusted'%(chan,nick))
+			irc.send('PRIVMSG NickServ :ACC '+nick)
 		elif line[3]==':#help':
 			irc.send('PRIVMSG %s :%s'%(chan,help(' '.join(line[4:]))))
 		elif line[3]==':#esoteric' and chan=='#esoteric':
@@ -147,7 +150,7 @@ def execcmd(cmdline):
 
 def help(cmd):
 	if cmd=='':
-		return '#echo #op #deop #voice #devoice #kick #src #msg #readmsg #help'
+		return '#echo #op #deop #voice #devoice #kick #src #msg #readmsg #trusted? #help'
 	elif cmd=='#echo':
 		return '#echo text      echo text back'
 	elif cmd=='#op':
@@ -166,6 +169,8 @@ def help(cmd):
 		return '#msg nick message      send a message to nick. messages can be read with #readmsg'
 	elif cmd=='#readmsg':
 		return '#readmsg      read messages you have received'
+	elif cmd=='#trusted?':
+		return '#trusted?      tell you if you are trusted by oonbotti'
 	elif cmd=='#help':
 		return '#help [command]      give short info of command or list commands'
 	else:
