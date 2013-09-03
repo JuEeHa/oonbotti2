@@ -1,5 +1,6 @@
 import eliza
 import threading
+import random
 
 concmd=['/q','/lt']
 
@@ -71,8 +72,13 @@ def parse((line,irc)):
 			chmode(irc,chan,nick,'-v',line[4:])
 		elif line[3]==':#kick':
 			if len(line)>4:
-				addauthcmd(nick,'KICK %s %s :%s'%(chan,line[4],' '.join(line[5:])))
-				irc.send('PRIVMSG NickServ :ACC '+nick)
+				if line[4]=='oonbotti2':
+					irc.send('KICK %s %s :Fuck you'%(chan,nick))
+				elif random.randint(0,1)==0:
+					irc.send('KICK %s %s :Bam'%(chan,nick))
+				else:
+					addauthcmd(nick,'KICK %s %s :%s'%(chan,line[4],' '.join(line[5:])))
+					irc.send('PRIVMSG NickServ :ACC '+nick)
 			else:
 				irc.send('PRIVMSG %s :Usage #kick nick reason'%chan)
 		elif line[3]==':#src':
