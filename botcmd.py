@@ -37,7 +37,7 @@ def addtrusted(nick):
 def rmtrusted(nick):
 	trustedlock.acquire()
 	if nick in trusted:
-		del trusted[nick]
+		trusted.remove(nick)
 	trustedlock.release()
 
 def loadtrusted():
