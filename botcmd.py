@@ -2,15 +2,19 @@ import eliza
 import threading
 import random
 
-concmd=['/q','/lt']
+concmd=['/q','/lt','/st','/lg']
 
 doctor=eliza.eliza()
 trusted=[]
 trustedlock=threading.Lock()
+gods=[]
+godslock=threading.Lock()
 msgs={}
 msglock=threading.Lock()
 authcmds={}
 authcmdlock=threading.Lock()
+authfuncs={}
+authfunclock=threading.Lock()
 
 msglock.acquire()
 f=open('msgs.txt','r')
@@ -24,18 +28,51 @@ for line in f:
 f.close()
 msglock.release()
 
+def addtrusted(nick):
+	trustedlock.acquire()
+	if nick not in trusted:
+		trusted.append(nick)
+	trustedlock.release()
+
+def rmtrusted(nick):
+	trustedlock.acquire()
+	if nick in trusted:
+		del trusted[nick]
+	trustedlock.release()
+
 def loadtrusted():
 	trustedlock.acquire()
 	while len(trusted)>0: trusted.pop() #I'm really sorry but trusted=[] created trusted as local variable
+	trustedlock.release()
 	f=open('trusted.txt','r')
 	for line in f:
 		while len(line)>0 and line[-1]=='\n': line=line[:-1]
 		if len(line)>0:
-			trusted.append(line)
+			addtrusted(line)
 	f.close()
+
+def loadgods():
+	godslock.acquire()
+	while len(gods)>0: gods.pop() #See above
+	f=open('gods.txt','r')
+	for line in f:
+		while len(line)>0 and line[-1]=='\n': line=line[:-1]
+		if len(line)>0:
+			gods.append(line)
+			addtrusted(line)
+	f.close()
+	godslock.release()
+
+def savetrusted():
+	trustedlock.acquire()
+	f=open('trusted.txt','w')
+	for i in trusted:
+		f.write(i+'\n')
+	f.close
 	trustedlock.release()
 	
 loadtrusted()
+loadgods()
 
 def addauthcmd(nick,cmd):
 	authcmdlock.acquire()
@@ -46,6 +83,16 @@ def addauthcmd(nick,cmd):
 		authcmds[nick].append(cmd)
 	trustedlock.release()
 	authcmdlock.release()
+
+def addauthfunc(nick,f):
+	authfunclock.acquire()
+	trustedlock.acquire()
+	if nick in trusted:
+		if nick not in authfuncs:
+			authfuncs[nick]=[]
+		authfuncs[nick].append(f)
+	trustedlock.release()
+	authfunclock.release()
 
 def chmode(irc,chan,nick,mode,args):
 	if len(args)==0:
@@ -103,6 +150,22 @@ def parse((line,irc)):
 		elif line[3]==':#trusted?':
 			addauthcmd(nick,'PRIVMSG %s :%s: You are trusted'%(chan,nick))
 			irc.send('PRIVMSG NickServ :ACC '+nick)
+		elif line[3]==':#trust':
+			if len(line)==5:
+				addauthfunc(nick,(lambda :addtrusted(line[4])))
+				irc.send('PRIVMSG NickServ :ACC '+nick)
+			else:
+				irc.send('PRIVMSG %s :Usage #trust nick'%chan)
+		elif line[3]==':#untrust':
+			if len(line)==5:
+				addauthfunc(nick,(lambda :rmtrusted(line[4])))
+				irc.send('PRIVMSG NickServ :ACC '+nick)
+			else:
+				irc.send('PRIVMSG %s :Usage #trust nick'%chan)
+		elif line[3]==':#ls-trusted':
+			trustedlock.acquire()
+			irc.send('PRIVMSG %s :%s'%(chan,', '.join(trusted)))
+			trustedlock.release()
 		elif line[3]==':#help':
 			irc.send('PRIVMSG %s :%s'%(chan,help(' '.join(line[4:]))))
 		elif line[3]==':#esoteric' and chan=='#esoteric':
@@ -110,22 +173,33 @@ def parse((line,irc)):
 		elif line[3][1:] in ('oonbotti:', 'oonbotti', 'oonbotti,', 'oonbotti2', 'oonbotti2:', 'oonbotti2,'):
 			irc.send('PRIVMSG %s :%s: %s'%(chan,nick,doctor.respond(' '.join(line[4:]))))
 	elif line[1]=='NOTICE' and line[0].split('!')[0]==':NickServ' and  line[4]=='ACC':
+		authfunclock.acquire()
 		authcmdlock.acquire()
-		trustedlock.acquire()
-		if line[3][1:] in trusted and line[3][1:] in authcmds and line[5]=='3':
-			for i in authcmds.pop(line[3][1:]):
-				irc.send(i)
+		if line[5]=='3':
+			trustedlock.acquire()
+			if line[3][1:] in trusted:
+				trustedlock.release()
+				if line[3][1:] in authcmds:
+					for i in authcmds.pop(line[3][1:]):
+						irc.send(i)
+				if line[3][1:] in authfuncs:
+					for i in authfuncs.pop(line[3][1:]):
+						i()
+			else:
+				trustedlock.release()
 		else:
 			if line[3][1:] in authcmds:
 				authcmds.pop(line[3][1:])
+			if line[3][1:] in authfuncs:
+				authfuncs.pop(line[3][1:])
 			if line[5]=='0':
 				irc.send('PRIVMSG %s :Register account with NickServ'%line[3][1:])
 			elif line[5]=='1':
 				irc.send('PRIVMSG %s :Identify with NickServ'%line[3][1:])
-			elif line[5]!='3':
+			else:
 				irc.send('PRIVMSG %s :WTF, NickServ returned %s'%(line[3][1:],line[5]))
-		trustedlock.release()
 		authcmdlock.release()
+		authfunclock.release()
 	elif line[1]=='482':
 		irc.send('PRIVMSG %s :Not op'%line[3])
 	#elif line[1]=='332' or line[1]=='TOPIC':
@@ -153,10 +227,14 @@ def execcmd(cmdline):
 		msglock.release()
 	elif cmdline[0]=='/lt':
 		loadtrusted()
+	elif cmdline[0]=='/st':
+		savetrusted()
+	elif cmdline[0]=='/lg':
+		loadgods()
 
 def help(cmd):
 	if cmd=='':
-		return '#echo #op #deop #voice #devoice #kick #src #msg #readmsg #trusted? #help'
+		return '#echo #op #deop #voice #devoice #kick #src #msg #readmsg #trusted? #trust #untrust #ls-trusted #help'
 	elif cmd=='#echo':
 		return '#echo text      echo text back'
 	elif cmd=='#op':
@@ -177,6 +255,12 @@ def help(cmd):
 		return '#readmsg      read messages you have received'
 	elif cmd=='#trusted?':
 		return '#trusted?      tell you if you are trusted by oonbotti'
+	elif cmd=='#trust':
+		return '#trust nick      add nick to trusted list'
+	elif cmd=='#untrust':
+		return '#untrust nick      remove nick from trusted list'
+	elif cmd=='#ls-trusted':
+		return '#lt-trusted      list nicks that are trusted'
 	elif cmd=='#help':
 		return '#help [command]      give short info of command or list commands'
 	else:

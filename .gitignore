@@ -1,5 +1,6 @@
 msgs.txt
 trusted.txt
+gods.txt
 startcmd.txt
 *.pyc
 ircbot.sh
