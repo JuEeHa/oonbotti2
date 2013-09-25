@@ -74,7 +74,7 @@ def parse((line,irc)):
 			if len(line)>4:
 				if line[4]=='oonbotti2':
 					irc.send('KICK %s %s :Fuck you'%(chan,nick))
-				elif random.randint(0,1)==0:
+				elif random.randint(0,9)==0:
 					irc.send('KICK %s %s :Bam'%(chan,nick))
 				else:
 					addauthcmd(nick,'KICK %s %s :%s'%(chan,line[4],' '.join(line[5:])))
@@ -122,7 +122,7 @@ def parse((line,irc)):
 				irc.send('PRIVMSG %s :Register account with NickServ'%line[3][1:])
 			elif line[5]=='1':
 				irc.send('PRIVMSG %s :Identify with NickServ'%line[3][1:])
-			else:
+			elif line[5]!='3':
 				irc.send('PRIVMSG %s :WTF, NickServ returned %s'%(line[3][1:],line[5]))
 		trustedlock.release()
 		authcmdlock.release()
