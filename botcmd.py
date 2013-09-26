@@ -139,14 +139,6 @@ def parse((line,irc)):
 				msglock.release()
 			else:
 				irc.send('PRIVMSG %s :Usage: #msg nick message'%chan)
-		elif line[3]==':#readmsg':
-			msglock.acquire()
-			if nick in msgs:
-				for sender,msg in msgs.pop(nick):
-					irc.send('PRIVMSG %s :<%s> %s'%(chan,sender,msg))
-			else:
-				irc.send('PRIVMSG %s :You have no unread messages'%chan)
-			msglock.release()
 		elif line[3]==':#trusted?':
 			addauthcmd(nick,'PRIVMSG %s :%s: You are trusted'%(chan,nick))
 			irc.send('PRIVMSG NickServ :ACC '+nick)
@@ -158,8 +150,11 @@ def parse((line,irc)):
 				irc.send('PRIVMSG %s :Usage #trust nick'%chan)
 		elif line[3]==':#untrust':
 			if len(line)==5:
-				addauthfunc(nick,(lambda :rmtrusted(line[4])))
-				irc.send('PRIVMSG NickServ :ACC '+nick)
+				godslock.acquire()
+				if line[4] not in gods:
+					addauthfunc(nick,(lambda :rmtrusted(line[4])))
+					irc.send('PRIVMSG NickServ :ACC '+nick)
+				godslock.release()
 			else:
 				irc.send('PRIVMSG %s :Usage #trust nick'%chan)
 		elif line[3]==':#ls-trusted':
@@ -213,7 +208,8 @@ def parse((line,irc)):
 	
 	msglock.acquire()
 	if (line[1]=='PRIVMSG' or line[1]=='JOIN') and nick in msgs:
-		irc.send('PRIVMSG %s :%s: You have unread messages, read them with #readmsg'%(chan,nick))
+		for sender,msg in msgs.pop(nick):
+			irc.send('PRIVMSG %s :<%s> %s'%(nick,sender,msg))
 	msglock.release()
 
 def execcmd(cmdline):
@@ -225,6 +221,7 @@ def execcmd(cmdline):
 					f.write('%s\t%s\t%s\n'%(receiver,sender,msg))
 		f.close()
 		msglock.release()
+		savetrusted()
 	elif cmdline[0]=='/lt':
 		loadtrusted()
 	elif cmdline[0]=='/st':
@@ -234,7 +231,7 @@ def execcmd(cmdline):
 
 def help(cmd):
 	if cmd=='':
-		return '#echo #op #deop #voice #devoice #kick #src #msg #readmsg #trusted? #trust #untrust #ls-trusted #help'
+		return '#echo #op #deop #voice #devoice #kick #src #msg #trusted? #trust #untrust #ls-trusted #help'
 	elif cmd=='#echo':
 		return '#echo text      echo text back'
 	elif cmd=='#op':
@@ -251,8 +248,6 @@ def help(cmd):
 		return '#src      paste a link to oonbotti2\'s git repo'
 	elif cmd=='#msg':
 		return '#msg nick message      send a message to nick. messages can be read with #readmsg'
-	elif cmd=='#readmsg':
-		return '#readmsg      read messages you have received'
 	elif cmd=='#trusted?':
 		return '#trusted?      tell you if you are trusted by oonbotti'
 	elif cmd=='#trust':
