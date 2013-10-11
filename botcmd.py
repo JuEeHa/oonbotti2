@@ -159,7 +159,10 @@ def parse((line,irc)):
 				irc.send('PRIVMSG %s :Usage #trust nick'%chan)
 		elif line[3]==':#ls-trusted':
 			trustedlock.acquire()
-			irc.send('PRIVMSG %s :%s'%(chan,', '.join(trusted)))
+			if chan!=nick:
+				irc.send('KICK %s %s :Just don\'t'%(chan,nick))
+			else:
+				irc.send('PRIVMSG %s :%s'%(chan,', '.join(trusted)))
 			trustedlock.release()
 		elif line[3]==':#help':
 			irc.send('PRIVMSG %s :%s'%(chan,help(' '.join(line[4:]))))
@@ -255,7 +258,7 @@ def help(cmd):
 	elif cmd=='#untrust':
 		return '#untrust nick      remove nick from trusted list'
 	elif cmd=='#ls-trusted':
-		return '#lt-trusted      list nicks that are trusted'
+		return '#lt-trusted      list nicks that are trusted. use only in a query'
 	elif cmd=='#help':
 		return '#help [command]      give short info of command or list commands'
 	else:
