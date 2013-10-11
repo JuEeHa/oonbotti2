@@ -258,7 +258,7 @@ def help(cmd):
 	elif cmd=='#untrust':
 		return '#untrust nick      remove nick from trusted list'
 	elif cmd=='#ls-trusted':
-		return '#lt-trusted      list nicks that are trusted. use only in a query'
+		return '#ls-trusted      list nicks that are trusted. use only in a query'
 	elif cmd=='#help':
 		return '#help [command]      give short info of command or list commands'
 	else:
