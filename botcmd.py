@@ -121,7 +121,7 @@ def parse((line,irc)):
 			if len(line)>4:
 				if line[4]=='oonbotti2':
 					irc.send('KICK %s %s :Fuck you'%(chan,nick))
-				elif random.randint(0,9)==0:
+				elif random.randint(0,9)==0 and len(line)==5:
 					irc.send('KICK %s %s :Bam'%(chan,nick))
 				else:
 					addauthcmd(nick,'KICK %s %s :%s'%(chan,line[4],' '.join(line[5:])))
