@@ -159,10 +159,7 @@ def parse((line,irc)):
 				irc.send('PRIVMSG %s :Usage #trust nick'%chan)
 		elif line[3]==':#ls-trusted':
 			trustedlock.acquire()
-			if chan!=nick:
-				irc.send('KICK %s %s :Just don\'t'%(chan,nick))
-			else:
-				irc.send('PRIVMSG %s :%s'%(chan,', '.join(trusted)))
+			irc.send('PRIVMSG %s :%s'%(nick,', '.join(trusted)))
 			trustedlock.release()
 		elif line[3]==':#help':
 			irc.send('PRIVMSG %s :%s'%(chan,help(' '.join(line[4:]))))
