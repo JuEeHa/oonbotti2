@@ -161,6 +161,12 @@ def parse((line,irc)):
 			trustedlock.acquire()
 			irc.send('PRIVMSG %s :%s'%(nick,', '.join(trusted)))
 			trustedlock.release()
+		elif line[3]==':#invite':
+			if len(line)==5:
+				addauthcmd(nick, 'INVITE %s %s'%(line[4], chan))
+				irc.send('PRIVMSG NickServ :ACC '+nick)
+			else:
+				irc.send('PRIVMSG %s :Usage #invite nick'%chan)
 		elif line[3]==':#help':
 			irc.send('PRIVMSG %s :%s'%(chan,help(' '.join(line[4:]))))
 		elif line[3]==':#esoteric' and chan=='#esoteric':
@@ -231,7 +237,7 @@ def execcmd(cmdline):
 
 def help(cmd):
 	if cmd=='':
-		return '#echo #op #deop #voice #devoice #kick #src #msg #trusted? #trust #untrust #ls-trusted #help'
+		return '#echo #op #deop #voice #devoice #kick #src #msg #trusted? #trust #untrust #ls-trusted #invite #help'
 	elif cmd=='#echo':
 		return '#echo text      echo text back'
 	elif cmd=='#op':
@@ -256,6 +262,8 @@ def help(cmd):
 		return '#untrust nick      remove nick from trusted list'
 	elif cmd=='#ls-trusted':
 		return '#ls-trusted      list nicks that are trusted. use only in a query'
+	elif cmd=='#invite':
+		return '#invite nick      invites nick to channel'
 	elif cmd=='#help':
 		return '#help [command]      give short info of command or list commands'
 	else:
