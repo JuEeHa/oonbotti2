@@ -266,5 +266,7 @@ def help(cmd):
 		return '#invite nick      invites nick to channel'
 	elif cmd=='#help':
 		return '#help [command]      give short info of command or list commands'
+	elif cmd=='me':
+		return 'I shall.'
 	else:
 		return 'Not found'
