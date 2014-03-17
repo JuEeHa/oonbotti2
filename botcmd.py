@@ -119,7 +119,7 @@ def parse((line,irc)):
 			chmode(irc,chan,nick,'-v',line[4:])
 		elif line[3]==':#kick':
 			if len(line)>4:
-				if line[4]=='oonbotti2':
+				if line[4].lower()=='oonbotti2':
 					irc.send('KICK %s %s :Fuck you'%(chan,nick))
 				elif random.randint(0,9)==0 and len(line)==5:
 					irc.send('KICK %s %s :Bam'%(chan,nick))
