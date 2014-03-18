@@ -130,7 +130,7 @@ class Loghandler(threading.Thread):
 		while True:
 			s=self.inpc.recv()
 			if s=='QUIT': break
-			sys.stdout.write(s)
+			sys.stdout.write(s.replace('\x1b','^['))
 
 class Threadwrapper(threading.Thread):
 	def __init__(self,func,arg):
