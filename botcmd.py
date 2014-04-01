@@ -133,6 +133,8 @@ def parse((line,irc)):
 				irc.send('PRIVMSG %s :Usage #kick nick reason'%chan)
 		elif line[3]==':#src':
 			irc.send('PRIVMSG %s :https://github.com/JuEeHa/oonbotti2'%chan)
+		elif line[3]==':#prefix' and chan=='#osdev-offtopic':
+			irc.send('PRIVMSG %s :gopher://smar.fi:7070/0/hash-prefix'%chan)
 		elif line[3]==':#msg':
 			if len(line)>5:
 				msglock.acquire()
