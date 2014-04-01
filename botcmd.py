@@ -180,7 +180,7 @@ def parse((line,irc)):
 			die=line[3][2:].split('d')
 			times=int(die[0]) if die[0] else 1
 			die=100 if die[1]=='%' else int(die[1])
-			if die<4 and times<1:
+			if die<4 or times<1 or times>128:
 				irc.send('PRIVMSG %s :Dice are limited to physically possible ones'%chan)
 			else:
 				rolls=[random.randint(1, die) for i in xrange(times)]
