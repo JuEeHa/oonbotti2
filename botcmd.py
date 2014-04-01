@@ -1,6 +1,7 @@
 import eliza
 import threading
 import random
+import re
 
 concmd=['/q','/lt','/st','/lg']
 
@@ -15,6 +16,8 @@ authcmds={}
 authcmdlock=threading.Lock()
 authfuncs={}
 authfunclock=threading.Lock()
+
+die_expr=re.compile("#[0-9]*d([0-9]+|%)")
 
 msglock.acquire()
 f=open('msgs.txt','r')
@@ -173,6 +176,19 @@ def parse((line,irc)):
 			irc.send('PRIVMSG %s :Nothing here'%chan)
 		elif line[3][1:] in ('oonbotti:', 'oonbotti', 'oonbotti,', 'oonbotti2', 'oonbotti2:', 'oonbotti2,'):
 			irc.send('PRIVMSG %s :%s: %s'%(chan,nick,doctor.respond(' '.join(line[4:]))))
+		elif die_expr.match(line[3][1:]):
+			die=line[3][2:].split('d')
+			times=int(die[0]) if die[0] else 1
+			die=100 if die[1]=='%' else int(die[1])
+			if die<4 and times<1:
+				irc.send('PRIVMSG %s :Dice are limited to physically possible ones'%chan)
+			else:
+				rolls=[random.randint(1, die) for i in xrange(times)]
+				result=reduce((lambda x,y:x+y), rolls)
+				if times>1:
+					irc.send('PRIVMSG %s :%s (%s)'%(chan, str(result), ', '.join([str(i) for i in rolls])))
+				else:
+					irc.send('PRIVMSG %s :%s'%(chan, str(result)))
 	elif line[1]=='NOTICE' and line[0].split('!')[0]==':NickServ' and  line[4]=='ACC':
 		authfunclock.acquire()
 		authcmdlock.acquire()
