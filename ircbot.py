@@ -38,6 +38,7 @@ class Connhandler(threading.Thread):
 		self.inpc=inpc
 		self.logc=logc
 	def send(self,s):
+		if len(s)>1024: s=s[:1024]
 		self.sock.send(s+'\r\n')
 		if s.split(' ')[0]!='PONG':
 			self.logc.send(s+'\n')
