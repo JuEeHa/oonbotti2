@@ -173,7 +173,9 @@ def parse((line,irc)):
 			else:
 				irc.send('PRIVMSG %s :Usage #invite nick'%chan)
 		elif line[3]==':#help':
-			irc.send('PRIVMSG %s :%s'%(chan,help(' '.join(line[4:]))))
+			helptext=help(' '.join(line[4:]))
+			if helptext:
+				irc.send('PRIVMSG %s :%s'%(chan,helptext))
 		elif line[3]==':#esoteric' and chan=='#esoteric':
 			irc.send('PRIVMSG %s :Nothing here'%chan)
 		elif line[3][1:] in ('oonbotti:', 'oonbotti', 'oonbotti,', 'oonbotti2', 'oonbotti2:', 'oonbotti2,'):
@@ -287,4 +289,4 @@ def help(cmd):
 	elif cmd=='me':
 		return 'I shall.'
 	else:
-		return 'Not found'
+		return None
