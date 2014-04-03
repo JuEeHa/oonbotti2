@@ -175,7 +175,7 @@ def parse((line,irc)):
 		elif line[3]==':#help':
 			helptext=help(' '.join(line[4:]))
 			if helptext:
-				irc.send('PRIVMSG %s :%s'%(chan,helptext))
+				irc.send('PRIVMSG %s : %s'%(chan,helptext))
 		elif line[3]==':#esoteric' and chan=='#esoteric':
 			irc.send('PRIVMSG %s :Nothing here'%chan)
 		elif line[3][1:] in ('oonbotti:', 'oonbotti', 'oonbotti,', 'oonbotti2', 'oonbotti2:', 'oonbotti2,'):
