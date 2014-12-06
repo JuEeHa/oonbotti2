@@ -5,6 +5,8 @@ import re
 
 concmd=['/q','/lt','/st','/lg']
 
+blacklist=['bslsk05']
+
 doctor=eliza.eliza()
 trusted=[]
 trustedlock=threading.Lock()
@@ -109,9 +111,13 @@ def parse((line,irc)):
 	line=line.split(' ')
 	nick=line[0].split('!')[0][1:]
 	chan=line[2] if line[2][0]=='#' else nick 
+	
+	if nick in blacklist:
+		return
+	
 	if line[1]=='PRIVMSG':
 		if line[3]==':#echo':
-			irc.send('PRIVMSG %s :%s'%(chan,' '.join(line[4:])))
+			irc.send('PRIVMSG %s :\xe2\x80\x8b%s'%(chan,' '.join(line[4:])))
 		elif line[3]==':#op':
 			chmode(irc,chan,nick,'+o',line[4:])
 		elif line[3]==':#deop':
@@ -189,8 +195,12 @@ def parse((line,irc)):
 					irc.send('PRIVMSG %s :Not supported'%chan)
 				else:
 					irc.send('PRIVMSG %s :%s%s'%(chan, random.randint(0,9), random.randint(0,9)))
-			elif die<4 or times<1 or times>128:
-				irc.send('PRIVMSG %s :Dice are limited to physically possible ones'%chan)
+			elif die<2:
+				irc.send('PRIVMSG %s :This die is not available in your space-time region.'%chan)
+			elif times<1:
+				irc.send('PRIVMSG %s :What exactly do you want me to do?'%chan)
+			elif times>128:
+				irc.send('PRIVMSG %s :Sorry, I don\'t have that many. Can I borrow yours?'%chan)
 			else:
 				rolls=[random.randint(1, die) for i in xrange(times)]
 				result=reduce((lambda x,y:x+y), rolls)
@@ -268,7 +278,7 @@ def help(cmd):
 	elif cmd=='#op':
 		return '#op [nick]      give nick or yourself op rights in case you are trusted by oonbotti2 and identified with NickServ'
 	elif cmd=='#deop':
-		return '#deop [nick]      remove your/nick\'s op rights (added due to irrational demand by shikhin and sortiecat, nick support added for same reason)'
+		return '#deop [nick]      remove your/nick\'s op rights'
 	elif cmd=='#voice':
 		return '#voice [nick]      give nick or yourself voice in case you are trusted by oonbotti2 and identified with NickServ'
 	elif cmd=='#devoice':
@@ -278,7 +288,7 @@ def help(cmd):
 	elif cmd=='#src':
 		return '#src      paste a link to oonbotti2\'s git repo'
 	elif cmd=='#msg':
-		return '#msg nick message      send a message to nick. messages can be read with #readmsg'
+		return '#msg nick message      send a message to nick'
 	elif cmd=='#trusted?':
 		return '#trusted?      tell you if you are trusted by oonbotti'
 	elif cmd=='#trust':
