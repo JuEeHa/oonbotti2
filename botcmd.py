@@ -211,7 +211,7 @@ def parse((line,irc)):
 	elif line[1]=='NOTICE' and line[0].split('!')[0]==':NickServ' and  line[4]=='ACC':
 		authfunclock.acquire()
 		authcmdlock.acquire()
-		if line[5]=='3':
+		if line[5]=='3' or line[5]=='2':
 			trustedlock.acquire()
 			if line[3][1:] in trusted:
 				trustedlock.release()
