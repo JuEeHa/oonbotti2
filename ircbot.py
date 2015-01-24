@@ -59,13 +59,8 @@ class Connhandler(threading.Thread):
 			self.logc.send(s+'\n')
 	def check(self,line):
 		args=line.split(' ')
-		nick=args[0].split('!')[0][1:]
-		chan=args[2] if len(args) >= 3 and args[2][0]=='#' else nick
 		if args[0]=='PING':
 			self.send('PONG :hjdicks')
-		elif args[1]=='INVITE' and args[2]==self.nick and args[3][1:] in self.chan.split(' '):
-			botcmd.addauthcmd(nick, 'JOIN '+args[3])
-			self.send('PRIVMSG NickServ :ACC '+nick)
 		else:
 			self.logc.send(line+'\n')
 			Threadwrapper(botcmd.parse,(line,Irc(self.chan, self.nick, self.inpc))).start()

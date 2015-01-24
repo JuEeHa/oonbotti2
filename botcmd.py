@@ -236,6 +236,9 @@ def parse((line,irc)):
 				irc.msg(line[3][1:], 'WTF, NickServ returned %s'+line[5])
 		authcmdlock.release()
 		authfunclock.release()
+	elif line[1]=='INVITE' and line[2]==irc.nick and line[3][1:] in irc.chan.split(' '):
+		addauthcmd(nick, 'JOIN '+line[3])
+		irc.msg('NickServ', 'ACC '+nick)
 	elif line[1]=='482':
 		irc.msg(line[3], 'Not op')
 	#elif line[1]=='332' or line[1]=='TOPIC':
