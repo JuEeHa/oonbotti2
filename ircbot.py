@@ -27,6 +27,21 @@ class Channel:
 			self.lock.release()
 			time.sleep(0.1)
 
+class Irc:
+	def __init__(self, chan, nick, inpc):
+		self.chan = chan
+		self.nick = nick
+		self.inpc = inpc
+	
+	def send(self, msg):
+		self.inpc.send(msg)
+	
+	def recv(self, wait=True):
+		return self.inpc.recv(wait)
+	
+	def msg(self, chan, msg):
+		self.inpc.send('PRIVMSG %s :%s' % (chan, msg))
+
 class Connhandler(threading.Thread):
 	def __init__(self,server,port,chan,nick,botname,inpc,logc):
 		threading.Thread.__init__(self)
@@ -53,7 +68,7 @@ class Connhandler(threading.Thread):
 			self.send('PRIVMSG NickServ :ACC '+nick)
 		else:
 			self.logc.send(line+'\n')
-			Threadwrapper(botcmd.parse,(line,self.inpc)).start()
+			Threadwrapper(botcmd.parse,(line,Irc(self.chan, self.nick, self.inpc))).start()
 	def run(self):
 		self.sock=None
 		for af, socktype, proto, canonname, sa in socket.getaddrinfo(self.server,self.port,socket.AF_UNSPEC,socket.SOCK_STREAM):
