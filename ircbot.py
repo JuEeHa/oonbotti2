@@ -132,6 +132,8 @@ class Keyhandler(threading.Thread):
 		while True:
 			line=raw_input()
 			c=line.split(' ')
+			if c == '':
+				continue
 			if c[0] in botcmd.concmd:
 				botcmd.execcmd(c)
 			if c[0]=='/j' and len(c)==2:
