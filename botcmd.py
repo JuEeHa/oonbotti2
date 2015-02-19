@@ -153,8 +153,16 @@ def parse((line,irc)):
 			else:
 				irc.msg(chan, 'Usage: #msg nick message')
 		elif line[3]==':#trusted?':
-			addauthcmd(nick,'PRIVMSG %s :%s: You are trusted'%(chan,nick))
-			irc.msg('NickServ', 'ACC '+nick)
+			trustnick=None
+			if len(line)==5:
+				trustnick=line[4]
+			elif len(line)==4:
+				trustnick=nick
+			else:
+				irc.msg(chan, 'Usage #trusted? [nick]')
+			if trustnick:
+				addauthcmd(trustnick,'PRIVMSG %s :%s is trusted'%(chan,trustnick))
+				irc.msg('NickServ', 'ACC '+trustnick)
 		elif line[3]==':#trust':
 			if len(line)==5:
 				addauthfunc(nick,(lambda :addtrusted(line[4])))
@@ -295,7 +303,7 @@ def help(cmd):
 	elif cmd=='#msg':
 		return '#msg nick message      send a message to nick'
 	elif cmd=='#trusted?':
-		return '#trusted?      tell you if you are trusted by oonbotti2'
+		return '#trusted? [nick]      tell you if nick or yourself is trusted by oonbotti2'
 	elif cmd=='#trust':
 		return '#trust nick      add nick to trusted list'
 	elif cmd=='#untrust':
