@@ -117,8 +117,8 @@ def savetrusted():
 loadtrusted()
 loadgods()
 
-def chmode(irc,chan,nick,mode,args):
-	if len(args)==0:
+def chmode(irc, chan, nick, mode, args):
+	if args == []:
 		if isauthorized(irc, nick):
 			irc.send('MODE %s %s %s'%(chan,mode,nick))
 	else:
@@ -179,98 +179,230 @@ def isauthorized(irc, nick):
 	
 	return state
 
+class ArgsfmtError(Exception):
+	def __init__(self, msg):
+		self.msg = msg
+	def __str__(self):
+		return 'Error with argument format: '+msg
+
+ARG_STD = 0
+ARG_OPT = 1
+ARG_UNL = 2
+
+def parseargsfmt(args):
+	# parses the argument format used by matchcmd and parsecmd
+	# e.g. parseargsfmt("foo [bar] {baz} ) -> [ARG_STD, ARG_OPT, ARG_UNL]
+	
+	args = args.split(' ')
+	out = []
+	for arg in args:
+		if len(arg) >= 2 and arg[0] == '[' and arg[-1] == ']': # Optional (0-1) argument: [bar]
+			out.append(ARG_OPT)
+		elif len(arg) >= 2 and arg[0] == '{' and arg[-1] == '}': # Unlimited (0-) number of arguments: {baz}
+			out.append(ARG_UNL)
+		else: # Normal argument: foo
+			out.append(ARG_STD)
+	
+	return out
+
+def getargnums(argtypes):
+	min = 0
+	max = 0 # max = None if number of arguments is unlimited
+	
+	for argtype in argtypes:
+		if argtype == ARG_STD:
+			min += 1
+			if max != None: # Don't try to increment if max is unlimited
+				max += 1
+		elif argtype == ARG_OPT:
+			if max != None: # Don't try to increment if max is unlimited
+				max += 1
+		elif argtype == ARG_UNL:
+			max = None
+	
+	return min, max
+
+def matchcmd(line, cmd, args=None):
+	# matchcmd(line, cmd) matched if the command cmd is used, matchcmd(line, cmd, args) checks whether the args match too
+	
+	if len(line) == 0:
+		return False
+	if line[0] != cmd:
+		return False
+	
+	if not args:
+		return True
+	
+	min, max = getargnums(parseargsfmt(args))
+	
+	if max and len(line)-1 >= min and len(line)-1 <= max:
+		return True
+	elif not max and len(line)-1 >= min:
+		return True
+	else:
+		return False
+
+def parsecmd(line, args):
+	# Returns a tuple containing the arguments. An optional argument that didn't get a value will be assigned ''
+	argtypes = parseargsfmt(args)
+	
+	if len(argtypes) >= 1 and ARG_UNL in argtypes[:-1]: # Disallow non-final unlimited arguments
+		raise ArgsfmtError('Non-final unlimited argument')
+	if len(filter((lambda type: type == ARG_OPT or type == ARG_UNL), argtypes)) > 1: # Disallow more than one optional or unlimited argument per argument string
+		raise ArgsfmtError('Ambiguous argument format')
+	
+	# Remove the command
+	if len(line) == 0:
+		raise ArgsfmtError('No command given')
+	line = line[1:]
+	
+	min, max = getargnums(argtypes)
+	if len(line) == min:
+		# Only standard arguments given
+		out = []
+		for type in argtypes:
+			if type == ARG_STD:
+				out.append(line[0])
+				line = line[1:]
+			else:
+				out.append('')
+	elif max and len(line) == max:
+		# Optional argument given
+		out = []
+		for type in argtypes:
+			if type == ARG_STD or type == ARG_OPT:
+				out.append(line[0])
+				line = line[1:]
+			else:
+				out.append('')
+	elif not max and len(line) > min:
+		# Unlimited argument given
+		out = []
+		for type in argtypes:
+			if type == ARG_STD or type == ARG_OPT:
+				out.append(line[0])
+				line = line[1:]
+			elif type == ARG_UNL:
+				out.append(' '.join(line))
+				line = []
+	else:
+		raise ArgsfmtError('Number of given arguments not possible for given format string')
+	
+	if len(out) == 1:
+		return out[0]
+	else:
+		return out
+	
 def parse((line,irc)):
 	line=line.split(' ')
 	nick=line[0].split('!')[0][1:]
 	chan=line[2] if line[2][0]=='#' else nick
 	
+	zwsp = '\xe2\x80\x8b'
+	
 	if nick in blacklist:
 		return
-	elif len(line) >= 4 and len(line[3]) >= 4 and line[3][:4] == ':\xe2\x80\x8b': # If line begins with ZWSP
+	elif len(line) >= 4 and len(line[3]) >= 4 and line[3][:len(zwsp)+1] == ':'+zwsp: # If line begins with ZWSP
 		return
 	
 	if line[1]=='PRIVMSG':
-		if line[3]==':#echo':
-			irc.msg(chan, '\xe2\x80\x8b'+' '.join(line[4:]))
-		elif line[3]==':#op':
-			chmode(irc,chan,nick,'+o',line[4:])
-		elif line[3]==':#deop':
-			chmode(irc,chan,nick,'-o',line[4:])
-		elif line[3]==':#voice':
-			chmode(irc,chan,nick,'+v',line[4:])
-		elif line[3]==':#devoice':
-			chmode(irc,chan,nick,'-v',line[4:])
-		elif line[3]==':#kick':
-			if len(line)>4:
-				if line[4].lower()==irc.nick:
-					irc.send('KICK %s %s :Fuck you'%(chan,nick))
-				elif random.randint(0,9)==0 and len(line)==5:
-					irc.send('KICK %s %s :Bam'%(chan,nick))
+		cmdline = [line[3][1:]] + line[4:]
+		while '' in cmdline:
+			cmdline.remove('')
+		if matchcmd(cmdline, '#echo'):
+			text = parsecmd(cmdline, '{text}')
+			print text #debg
+			irc.msg(chan, zwsp+text)
+		elif matchcmd(cmdline, '#op'):
+			args = parsecmd(cmdline, '{args}')
+			chmode(irc, chan, nick, '+o', args.split(' '))
+		elif matchcmd(cmdline, '#deop'):
+			args = parsecmd(cmdline, '{args}')
+			chmode(irc, chan, nick, '-o', args.split(' '))
+		elif matchcmd(cmdline, '#voice'):
+			args = parsecmd(cmdline, '{args}')
+			chmode(irc, chan, nick, '+v', args.split(' '))
+		elif matchcmd(cmdline, '#devoice'):
+			args = parsecmd(cmdline, '{args}')
+			chmode(irc, chan, nick, '-v', args.split(' '))
+		elif matchcmd(cmdline, '#kick'):
+			if matchcmd(cmdline, '#kick', 'nick {reason}'):
+				kicknick, kickreason = parsecmd(cmdline, 'nick {reason}')
+				if kicknick.lower() == irc.nick:
+					irc.send('KICK %s %s :Fuck you' % (chan, nick))
+				elif random.randint(0,9) == 0 and len(line) == 5:
+					irc.send('KICK %s %s :Bam' % (chan, nick))
 				else:
 					if isauthorized(irc, nick):
-						irc.send('KICK %s %s :%s'%(chan,line[4],' '.join(line[5:])))
+						irc.send('KICK %s %s :%s'%(chan, kicknick, kickreason))
 			else:
 				irc.msg(chan, 'Usage #kick nick reason')
-		elif line[3]==':#src':
+		elif matchcmd(cmdline, '#src'):
 			irc.msg(chan, 'https://github.com/JuEeHa/oonbotti2')
-		elif line[3]==':#prefix' and chan=='#osdev-offtopic':
+		elif matchcmd(cmdline, '#prefix') and chan == '#osdev-offtopic':
 			irc.msg(chan, 'gopher://smar.fi:7070/0/hash-prefix')
-		elif line[3]==':#msg':
-			if len(line)>5:
+		elif matchcmd(cmdline, '#msg'):
+			if matchcmd(cmdline, '#msg', 'nick {message}'):
+				msgnick, message = parsecmd(cmdline, 'nick {message}')
 				msglock.acquire()
-				if line[4] not in msgs:
-					msgs[line[4]]=[]
-				msgs[line[4]].append((nick,' '.join(line[5:])))
+				if msgnick not in msgs:
+					msgs[msgnick] = []
+				msgs[msgnick].append((nick, message))
 				msglock.release()
 			else:
 				irc.msg(chan, 'Usage: #msg nick message')
-		elif line[3]==':#trusted?':
-			trustnick=None
-			if len(line)==5:
-				trustnick=line[4]
-			elif len(line)==4:
-				trustnick=nick
+		elif matchcmd(cmdline, '#trusted?'):
+			if matchcmd(cmdline, '#trusted?', '[nick]'):
+				trustnick = parsecmd(cmdline, '[nick]')
+				if trustnick == '':
+					trustnick=nick
+				if istrusted(trustnick):
+					irc.msg(chan, '%s is trusted' % trustnick)
+				else:
+					irc.msg(chan, '%s is not trusted' % trustnick)
 			else:
-				irc.msg(chan, 'Usage #trusted? [nick]')
-			if istrusted(nick):
-				irc.msg(chan, '%s is trusted')
-			else:
-				irc.msg(chan, '%s is not trusted')
-		elif line[3]==':#trust':
-			if len(line)==5:
+				irc.msg(chan, 'Usage: #trusted? [nick]')
+		elif matchcmd(cmdline, '#trust'):
+			if matchcmd(cmdline, '#trust', 'nick'):
+				trustnick = parsecmd(cmdline, 'nick')
 				if isauthorized(irc, nick):
-					addtrusted(line[4])
+					addtrusted(trustnick)
 			else:
 				irc.msg(chan, 'Usage #trust nick')
-		elif line[3]==':#untrust':
-			if len(line)==5:
+		elif matchcmd(cmdline, '#untrust'):
+			if matchcmd(cmdline, '#untrust', 'nick'):
+				untrustnick = parsecmd(cmdline, 'nick')
 				godslock.acquire()
-				if line[4] not in gods:
+				if untrustnick not in gods:
 					if isauthorized(irc, nick):
-						rmtrusted(line[4])
+						rmtrusted(untrustnick)
 				godslock.release()
 			else:
 				irc.msg(chan, 'Usage #untrust nick')
-		elif line[3]==':#ls-trusted':
+		elif matchcmd(cmdline, '#ls-trusted'):
 			trustedlock.acquire()
 			irc.msg(nick, ', '.join(trusted))
 			trustedlock.release()
-		elif line[3]==':#invite':
-			if len(line)==5:
-				if authorized(irc, nick):
-					irc.send('INVITE %s %s' % (line[4], chan))
+		elif matchcmd(cmdline, '#invite'):
+			if matchcmd(cmdline, '#invite', 'nick'):
+				invitenick = parsecmd(cmdline, 'nick')
+				if isauthorized(irc, nick):
+					irc.send('INVITE %s %s' % (invitenick, chan))
 			else:
 				irc.msg(chan, 'Usage #invite nick')
-		elif line[3]==':#help':
-			helptext=help(' '.join(line[4:]))
-			if helptext:
-				irc.msg(chan, helptext)
-		elif line[3]==':#esoteric' and chan=='#esoteric':
+		elif matchcmd(cmdline, '#help'):
+			if matchcmd(cmdline, '#help', '[command]'):
+				command = parsecmd(cmdline, '[command]')
+				helptext = help(command)
+				if helptext:
+					irc.msg(chan, zwsp+helptext)
+		elif matchcmd(cmdline, '#esoteric') and chan=='#esoteric':
 			irc.msg(chan, 'Nothing here')
-		elif line[3][1:] in [irc.nick, irc.nick+',', irc.nick+':']:
-			irc.msg(chan, '%s: %s' % (nick, doctor.respond(' '.join(line[4:]))))
-		elif die_expr.match(line[3][1:]):
-			die=line[3][2:].split('d')
+		elif cmdline[0] in [irc.nick, irc.nick+',', irc.nick+':']:
+			question = parsecmd(cmdline, '{question}')
+			irc.msg(chan, '%s: %s' % (nick, doctor.respond(question)))
+		elif die_expr.match(cmdline[0]):
+			die=cmdline[0][1:].split('d')
 			times=int(die[0]) if die[0] else 1
 			die='%' if die[1]=='%' else int(die[1])
 			if die=='%':
