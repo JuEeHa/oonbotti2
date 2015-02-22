@@ -15,10 +15,8 @@ gods=[]
 godslock=threading.Lock()
 msgs={}
 msglock=threading.Lock()
-authcmds={}
-authcmdlock=threading.Lock()
-authfuncs={}
-authfunclock=threading.Lock()
+authcheck={}
+authchecklock=threading.Lock()
 
 die_expr=re.compile("#[0-9]*d([0-9]+|%)")
 
@@ -119,33 +117,67 @@ def savetrusted():
 loadtrusted()
 loadgods()
 
-def addauthcmd(nick,cmd):
-	authcmdlock.acquire()
-	trustedlock.acquire()
-	if nick in trusted:
-		if nick not in authcmds:
-			authcmds[nick]=[]
-		authcmds[nick].append(cmd)
-	trustedlock.release()
-	authcmdlock.release()
-
-def addauthfunc(nick,f):
-	authfunclock.acquire()
-	trustedlock.acquire()
-	if nick in trusted:
-		if nick not in authfuncs:
-			authfuncs[nick]=[]
-		authfuncs[nick].append(f)
-	trustedlock.release()
-	authfunclock.release()
-
 def chmode(irc,chan,nick,mode,args):
 	if len(args)==0:
-		addauthcmd(nick,'MODE %s %s %s'%(chan,mode,nick))
+		if isauthorized(irc, nick):
+			irc.send('MODE %s %s %s'%(chan,mode,nick))
 	else:
 		for name in args:
-			addauthcmd(nick,'MODE %s %s %s'%(chan,mode,name))
-	irc.msg('NickServ', 'ACC '+nick)
+			if isauthorized(irc, nick):
+				irc.send('MODE %s %s %s'%(chan,mode,name))
+
+def istrusted(nick):
+	trustedlock.acquire()
+	if nick in trusted:
+		trustedlock.release()
+		return True
+	else:
+		trustedlock.release()
+		return False
+
+def initauthcheck(nick):
+	global authcheck, authchecklock
+	authchecklock.acquire()
+	authcheck[nick]=None
+	authchecklock.release()
+
+def setauthcheckstate(nick, state):
+	global authcheck, authchecklock
+	authchecklock.acquire()
+	if nick in authcheck:
+		authcheck[nick]=state
+	authchecklock.release()
+
+def getauthcheckstate(nick):
+	global authcheck, authchecklock
+	authchecklock.acquire()
+	if nick in authcheck:
+		state=authcheck[nick]
+	authchecklock.release()
+	return state
+
+def removeauthcheck(nick):
+	global authcheck, authchecklock
+	authchecklock.acquire()
+	if nick in authcheck:
+		del authcheck[nick]
+	authchecklock.release()
+
+def isauthorized(irc, nick):
+	if not istrusted(nick):
+		return False
+	
+	initauthcheck(nick)
+	irc.msg('NickServ', 'acc '+nick)
+	cron.queuejob(5, (lambda : setauthcheckstate(nick, False)))
+	
+	state=None
+	while state==None:
+		state=getauthcheckstate(nick)
+		time.sleep(0.1)
+	removeauthcheck(nick)
+	
+	return state
 
 def parse((line,irc)):
 	line=line.split(' ')
@@ -175,8 +207,8 @@ def parse((line,irc)):
 				elif random.randint(0,9)==0 and len(line)==5:
 					irc.send('KICK %s %s :Bam'%(chan,nick))
 				else:
-					addauthcmd(nick,'KICK %s %s :%s'%(chan,line[4],' '.join(line[5:])))
-					irc.msg('NickServ', 'ACC '+nick)
+					if isauthorized(irc, nick):
+						irc.send('KICK %s %s :%s'%(chan,line[4],' '.join(line[5:])))
 			else:
 				irc.msg(chan, 'Usage #kick nick reason')
 		elif line[3]==':#src':
@@ -200,21 +232,22 @@ def parse((line,irc)):
 				trustnick=nick
 			else:
 				irc.msg(chan, 'Usage #trusted? [nick]')
-			if trustnick:
-				addauthcmd(trustnick,'PRIVMSG %s :%s is trusted'%(chan,trustnick))
-				irc.msg('NickServ', 'ACC '+trustnick)
+			if istrusted(nick):
+				irc.msg(chan, '%s is trusted')
+			else:
+				irc.msg(chan, '%s is not trusted')
 		elif line[3]==':#trust':
 			if len(line)==5:
-				addauthfunc(nick,(lambda :addtrusted(line[4])))
-				irc.msg('NickServ', 'ACC '+nick)
+				if isauthorized(irc, nick):
+					addtrusted(line[4])
 			else:
 				irc.msg(chan, 'Usage #trust nick')
 		elif line[3]==':#untrust':
 			if len(line)==5:
 				godslock.acquire()
 				if line[4] not in gods:
-					addauthfunc(nick,(lambda :rmtrusted(line[4])))
-					irc.msg('NickServ', 'ACC '+nick)
+					if isauthorized(irc, nick):
+						rmtrusted(line[4])
 				godslock.release()
 			else:
 				irc.msg(chan, 'Usage #untrust nick')
@@ -224,8 +257,8 @@ def parse((line,irc)):
 			trustedlock.release()
 		elif line[3]==':#invite':
 			if len(line)==5:
-				addauthcmd(nick, 'INVITE %s %s'%(line[4], chan))
-				irc.msg('NickServ', 'ACC '+nick)
+				if authorized(irc, nick):
+					irc.send('INVITE %s %s' % (line[4], chan))
 			else:
 				irc.msg(chan, 'Usage #invite nick')
 		elif line[3]==':#help':
@@ -234,11 +267,6 @@ def parse((line,irc)):
 				irc.msg(chan, helptext)
 		elif line[3]==':#esoteric' and chan=='#esoteric':
 			irc.msg(chan, 'Nothing here')
-		elif line[3]==':#cron':
-			if len(line)>=6:
-				cron.queuejob(int(line[4]), (lambda : irc.msg(chan, ' '.join(line[5:]))))
-			else:
-				irc.msg(chan, 'Usage #cron time message')
 		elif line[3][1:] in [irc.nick, irc.nick+',', irc.nick+':']:
 			irc.msg(chan, '%s: %s' % (nick, doctor.respond(' '.join(line[4:]))))
 		elif die_expr.match(line[3][1:]):
@@ -264,36 +292,19 @@ def parse((line,irc)):
 				else:
 					irc.msg(chan, str(result))
 	elif line[1]=='NOTICE' and line[0].split('!')[0]==':NickServ' and  line[4]=='ACC':
-		authfunclock.acquire()
-		authcmdlock.acquire()
 		if line[5]=='3' or line[5]=='2':
-			trustedlock.acquire()
-			if line[3][1:] in trusted:
-				trustedlock.release()
-				if line[3][1:] in authcmds:
-					for i in authcmds.pop(line[3][1:]):
-						irc.send(i)
-				if line[3][1:] in authfuncs:
-					for i in authfuncs.pop(line[3][1:]):
-						i()
-			else:
-				trustedlock.release()
+			setauthcheckstate(line[3][1:], True)
 		else:
-			if line[3][1:] in authcmds:
-				authcmds.pop(line[3][1:])
-			if line[3][1:] in authfuncs:
-				authfuncs.pop(line[3][1:])
+			setauthcheckstate(line[3][1:], False)
 			if line[5]=='0':
 				irc.msg(line[3][1:], 'Register account with NickServ')
 			elif line[5]=='1':
 				irc.msg(line[3][1:], 'PRIVMSG %s :Identify with NickServ')
 			else:
 				irc.msg(line[3][1:], 'WTF, NickServ returned %s'+line[5])
-		authcmdlock.release()
-		authfunclock.release()
 	elif line[1]=='INVITE' and line[2]==irc.nick and line[3][1:] in irc.chan.split(' '):
-		addauthcmd(nick, 'JOIN '+line[3])
-		irc.msg('NickServ', 'ACC '+nick)
+		if isauthorized(irc, nick):
+			irc.send('JOIN '+line[3])
 	elif line[1]=='482':
 		irc.msg(line[3], 'Not op')
 	#elif line[1]=='332' or line[1]=='TOPIC':
