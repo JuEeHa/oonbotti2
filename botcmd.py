@@ -2,6 +2,7 @@ import eliza
 import threading
 import random
 import re
+import time
 
 concmd=['/q','/lt','/st','/lg']
 
@@ -21,6 +22,42 @@ authfunclock=threading.Lock()
 
 die_expr=re.compile("#[0-9]*d([0-9]+|%)")
 
+class Cron(threading.Thread):
+	def __init__(self):
+		self.timedjobs=[]
+		self.timedjobslock=threading.Lock()
+		self.cronctrl=[]
+		self.cronctrllock=threading.Lock()
+		threading.Thread.__init__(self)
+	def queuejob(self, time, fn):
+		self.timedjobslock.acquire()
+		self.timedjobs.append((time, fn))
+		self.timedjobslock.release()
+	def ctrl(self, cmd):
+		self.cronctrllock.acquire()
+		self.cronctrl.append(cmd)
+		self.cronctrllock.release()
+	def run(self):
+		run=True
+		while run:
+			time.sleep(1) # Accuracy doesn't need to be high
+			
+			self.cronctrllock.acquire()
+			for cmd in self.cronctrl:
+				if cmd=='QUIT':
+					run=False
+			self.cronctrl=[]
+			self.cronctrllock.release()
+			
+			self.timedjobslock.acquire()
+			self.timedjobs=map((lambda (time,fn): (time-1,fn)), self.timedjobs)
+			torun=map((lambda (time,fn): fn), filter((lambda (time,fn): time<=0), self.timedjobs))
+			self.timedjobs=filter((lambda (time,fn): time>0), self.timedjobs)
+			self.timedjobslock.release()
+			
+			for fn in torun:
+				fn()
+
 msglock.acquire()
 f=open('msgs.txt','r')
 for line in f:
@@ -32,6 +69,9 @@ for line in f:
 		msgs[receiver].append((sender,msg))
 f.close()
 msglock.release()
+
+cron=Cron()
+cron.start()
 
 def addtrusted(nick):
 	trustedlock.acquire()
@@ -194,6 +234,11 @@ def parse((line,irc)):
 				irc.msg(chan, helptext)
 		elif line[3]==':#esoteric' and chan=='#esoteric':
 			irc.msg(chan, 'Nothing here')
+		elif line[3]==':#cron':
+			if len(line)>=6:
+				cron.queuejob(int(line[4]), (lambda : irc.msg(chan, ' '.join(line[5:]))))
+			else:
+				irc.msg(chan, 'Usage #cron time message')
 		elif line[3][1:] in [irc.nick, irc.nick+',', irc.nick+':']:
 			irc.msg(chan, '%s: %s' % (nick, doctor.respond(' '.join(line[4:]))))
 		elif die_expr.match(line[3][1:]):
@@ -276,6 +321,8 @@ def execcmd(cmdline):
 		f.close()
 		msglock.release()
 		savetrusted()
+		
+		cron.ctrl('QUIT')
 	elif cmdline[0]=='/lt':
 		loadtrusted()
 	elif cmdline[0]=='/st':
