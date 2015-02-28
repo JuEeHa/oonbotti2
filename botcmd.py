@@ -118,7 +118,7 @@ loadtrusted()
 loadgods()
 
 def chmode(irc, chan, nick, mode, args):
-	if args == []:
+	if args == ['']:
 		if isauthorized(irc, nick):
 			irc.send('MODE %s %s %s'%(chan,mode,nick))
 	else:
