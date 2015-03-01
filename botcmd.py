@@ -18,8 +18,8 @@ godslock = threading.Lock()
 msgs = {}
 msgslock = threading.Lock()
 
-authcheck = {}
-authchecklock = threading.Lock()
+accountcheck = {}
+accountchecklock = threading.Lock()
 
 die_expr=re.compile("#[0-9]*d([0-9]+|%)")
 
@@ -98,23 +98,23 @@ def savemessages():
 
 loadmessages()
 
-def addtrusted(nick):
+def addtrusted(account):
 	global trusted, trustedlock
 	
 	trustedlock.acquire()
 	
-	if nick not in trusted:
-		trusted.append(nick)
+	if account not in trusted:
+		trusted.append(account)
 	
 	trustedlock.release()
 
-def rmtrusted(nick):
+def rmtrusted(account):
 	global trusted, trustedlock
 	
 	trustedlock.acquire()
 	
-	if nick in trusted:
-		trusted.remove(nick)
+	if account in trusted:
+		trusted.remove(account)
 	
 	trustedlock.release()
 
@@ -176,63 +176,70 @@ def chmode(irc, chan, nick, mode, args):
 			if isauthorized(irc, nick):
 				irc.send('MODE %s %s %s' % (chan, mode, name))
 
-def istrusted(nick):
+def istrusted(account):
 	trustedlock.acquire()
-	if nick in trusted:
+	if account in trusted:
 		trustedlock.release()
 		return True
 	else:
 		trustedlock.release()
 		return False
 
-def initauthcheck(nick):
-	global authcheck, authchecklock
+def initaccountcheck(nick):
+	global accountcheck, accountchecklock
 	
-	authchecklock.acquire()
-	authcheck[nick] = None
-	authchecklock.release()
+	accountchecklock.acquire()
+	accountcheck[nick] = None
+	accountchecklock.release()
 
-def setauthcheckstate(nick, state):
-	global authcheck, authchecklock
+def setaccountcheckvalue(nick, value):
+	global accountcheck, accountchecklock
 	
-	authchecklock.acquire()
-	if nick in authcheck:
-		authcheck[nick] = state
-	authchecklock.release()
+	accountchecklock.acquire()
+	if nick in accountcheck:
+		accountcheck[nick] = value
+	accountchecklock.release()
 
-def getauthcheckstate(nick):
-	global authcheck, authchecklock
+def getaccountcheckvalue(nick):
+	global accountcheck, accountchecklock
 	
-	authchecklock.acquire()
-	if nick in authcheck:
-		state = authcheck[nick]
-	authchecklock.release()
+	accountchecklock.acquire()
+	if nick in accountcheck:
+		value = accountcheck[nick]
+	accountchecklock.release()
 	
-	return state
+	return value
 
-def removeauthcheck(nick):
-	global authcheck, authchecklock
+def removeaccountcheck(nick):
+	global accountcheck, accountchecklock
 	
-	authchecklock.acquire()
-	if nick in authcheck:
-		del authcheck[nick]
-	authchecklock.release()
+	accountchecklock.acquire()
+	if nick in accountcheck:
+		del accountcheck[nick]
+	accountchecklock.release()
+
+def getaccount(irc, nick):	
+	initaccountcheck(nick)
+	irc.send('WHOIS ' + nick)
+	cron.queuejob(5, (lambda : setaccountcheckvalue(nick, '')))
+	
+	account = None
+	while account == None:
+		account = getaccountcheckvalue(nick)
+		time.sleep(0.1)
+	removeaccountcheck(nick)
+	
+	if account == '': # '' Signifies failure
+		return None
+	else:
+		return account
 
 def isauthorized(irc, nick):
-	if not istrusted(nick):
-		return False
-	
-	initauthcheck(nick)
-	irc.msg('NickServ', 'acc ' + nick)
-	cron.queuejob(5, (lambda : setauthcheckstate(nick, False)))
-	
-	state = None
-	while state == None:
-		state = getauthcheckstate(nick)
-		time.sleep(0.1)
-	removeauthcheck(nick)
-	
-	return state
+	account = getaccount(irc, nick)
+	if account:
+		return istrusted(account)
+	else:
+		irc.msg(nick, 'Identify with NickServ')
 
 class ArgsfmtError(Exception):
 	def __init__(self, msg):
@@ -415,28 +422,40 @@ def parse((line, irc)):
 			if matchcmd(cmdline, '#trusted?', '[nick]'):
 				trustnick = parsecmd(cmdline, '[nick]')
 				if trustnick == '':
-					trustnick=nick
-				if istrusted(trustnick):
-					irc.msg(chan, '%s is trusted' % trustnick)
+					trustnick = nick
+				account = getaccount(irc, trustnick)
+				if account:
+					if istrusted(account):
+						irc.msg(chan, '%s is trusted' % trustnick)
+					else:
+						irc.msg(chan, '%s is not trusted' % trustnick)
 				else:
-					irc.msg(chan, '%s is not trusted' % trustnick)
+					irc.msg(chan, 'Failed to get account for %s' % trustnick)
 			else:
 				irc.msg(chan, 'Usage: #trusted? [nick]')
 		elif matchcmd(cmdline, '#trust'):
 			if matchcmd(cmdline, '#trust', 'nick'):
 				trustnick = parsecmd(cmdline, 'nick')
 				if isauthorized(irc, nick):
-					addtrusted(trustnick)
+					account = getaccount(irc, trustnick)
+					if account:
+						addtrusted(account)
+					else:
+						irc.msg(chan, 'Failed to get account for %s' % trustnick)
 			else:
 				irc.msg(chan, 'Usage #trust nick')
 		elif matchcmd(cmdline, '#untrust'):
 			if matchcmd(cmdline, '#untrust', 'nick'):
 				untrustnick = parsecmd(cmdline, 'nick')
-				godslock.acquire()
-				if untrustnick not in gods:
-					if isauthorized(irc, nick):
-						rmtrusted(untrustnick)
-				godslock.release()
+				if isauthorized(irc, nick):
+					account = getaccount(irc, untrustnick)
+					if account:
+						godslock.acquire()
+						if account not in gods:
+							rmtrusted(untrustnick)
+						godslock.release()
+					else:
+						irc.msg(chan, 'Failed to get account for %s' % untrustnick)
 			else:
 				irc.msg(chan, 'Usage #untrust nick')
 		elif matchcmd(cmdline, '#ls-trusted'):
@@ -483,17 +502,14 @@ def parse((line, irc)):
 					irc.msg(chan, '%s (%s)' % (str(result), ', '.join([str(i) for i in rolls])))
 				else:
 					irc.msg(chan, str(result))
-	elif line[1] == 'NOTICE' and line[0].split('!')[0] == ':NickServ' and line[4] == 'ACC':
-		if line[5] == '3' or line[5] == '2':
-			setauthcheckstate(line[3][1:], True)
-		else:
-			setauthcheckstate(line[3][1:], False)
-			if line[5] == '0':
-				irc.msg(line[3][1:], 'Register account with NickServ')
-			elif line[5] == '1':
-				irc.msg(line[3][1:], 'Identify with NickServ')
-			else:
-				irc.msg(line[3][1:], 'WTF, NickServ returned %s' % line[5])
+	elif line[1] == '330': # WHOIS: is logged in as
+		whoisnick = line[3]
+		account = line[4]
+		setaccountcheckvalue(whoisnick, account)
+	elif line[1] == '318': # WHOIS: End of /WHOIS list.
+		whoisnick = line[3]
+		if getaccountcheckvalue(whoisnick) == None:
+			setaccountcheckvalue(whoisnick, '') # Mark as failed, '' is used because None is already reserved
 	elif line[1] == 'INVITE' and line[2] == irc.nick and line[3][1:] in irc.chan.split(' '):
 		if isauthorized(irc, nick):
 			irc.send('JOIN ' + line[3])
