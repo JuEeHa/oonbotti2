@@ -555,7 +555,7 @@ def usage(cmd, message = True):
 	         '#kick': 'nick [reason]',
 	         '#src': '',
 	         '#msg': 'nick message',
-	         '#trusted?': 'nick',
+	         '#trusted?': '[nick]',
 	         '#trust': 'nick',
 	         '#untrust': 'nick',
 	         '#ls-trusted': '',
