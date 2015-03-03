@@ -10,9 +10,9 @@ blacklist = ['bslsk05']
 
 doctor = eliza.eliza()
 
-trusted = []
+trusted = {}
 trustedlock = threading.Lock()
-gods = []
+gods = {}
 godslock = threading.Lock()
 
 msgs = {}
@@ -98,23 +98,26 @@ def savemessages():
 
 loadmessages()
 
-def addtrusted(account):
+def addtrusted(chan, account):
 	global trusted, trustedlock
 	
 	trustedlock.acquire()
 	
-	if account not in trusted:
-		trusted.append(account)
+	if chan not in trusted:
+		trusted[chan] = []
+	
+	if account not in trusted[chan]:
+		trusted[chan].append(account)
 	
 	trustedlock.release()
 
-def rmtrusted(account):
+def rmtrusted(chan, account):
 	global trusted, trustedlock
 	
 	trustedlock.acquire()
 	
-	if account in trusted:
-		trusted.remove(account)
+	if chan in trusted and account in trusted[chan]:
+		trusted[chan].remove(account)
 	
 	trustedlock.release()
 
@@ -122,7 +125,7 @@ def loadtrusted():
 	global trusted, trustedlock
 	
 	trustedlock.acquire()
-	trusted = []
+	trusted = {}
 	trustedlock.release()
 	
 	f=open('trusted.txt', 'r')
@@ -131,7 +134,8 @@ def loadtrusted():
 		while len(line) > 0 and line[-1] == '\n':
 			line = line[:-1]
 		if len(line) > 0:
-			addtrusted(line)
+			chan, account = line.split()
+			addtrusted(chan, account)
 	
 	f.close()
 
@@ -139,15 +143,20 @@ def loadgods():
 	global gods, godslock
 	
 	godslock.acquire()
-	gods = []
+	gods = {}
 	f=open('gods.txt', 'r')
 	
 	for line in f:
 		while len(line) > 0 and line[-1] == '\n':
 			line = line[:-1]
 		if len(line) > 0:
-			gods.append(line)
-			addtrusted(line)
+			chan, account = line.split()
+			
+			if chan not in gods:
+				gods[chan] = []
+			
+			gods[chan].append(account)
+			addtrusted(chan, account)
 	
 	f.close()
 	godslock.release()
@@ -158,8 +167,9 @@ def savetrusted():
 	trustedlock.acquire()
 	f=open('trusted.txt', 'w')
 	
-	for i in trusted:
-		f.write(i+'\n')
+	for chan in trusted:
+		for account in trusted[chan]:
+			f.write('%s %s\n' % (chan, account))
 	
 	f.close
 	trustedlock.release()
@@ -169,16 +179,16 @@ loadgods()
 
 def chmode(irc, chan, nick, mode, args):
 	if args == ['']:
-		if isauthorized(irc, nick):
+		if isauthorized(irc, chan, nick):
 			irc.send('MODE %s %s %s' % (chan, mode, nick))
 	else:
 		for name in args:
-			if isauthorized(irc, nick):
+			if isauthorized(irc, chan, nick):
 				irc.send('MODE %s %s %s' % (chan, mode, name))
 
-def istrusted(account):
+def istrusted(chan, account):
 	trustedlock.acquire()
-	if account in trusted:
+	if chan in trusted and account in trusted[chan]:
 		trustedlock.release()
 		return True
 	else:
@@ -234,10 +244,10 @@ def getaccount(irc, nick):
 	else:
 		return account
 
-def isauthorized(irc, nick):
+def isauthorized(irc, chan, nick):
 	account = getaccount(irc, nick)
 	if account:
-		return istrusted(account)
+		return istrusted(chan, account)
 	else:
 		irc.msg(nick, 'Identify with NickServ')
 
@@ -400,7 +410,7 @@ def parse((line, irc)):
 				elif random.randint(0,9) == 0 and len(line) == 5:
 					irc.send('KICK %s %s :Bam' % (chan, nick))
 				else:
-					if isauthorized(irc, nick):
+					if isauthorized(irc, chan, nick):
 						irc.send('KICK %s %s :%s'%(chan, kicknick, kickreason))
 			else:
 				irc.msg(chan, 'Usage #kick nick reason')
@@ -425,7 +435,7 @@ def parse((line, irc)):
 					trustnick = nick
 				account = getaccount(irc, trustnick)
 				if account:
-					if istrusted(account):
+					if istrusted(chan, account):
 						irc.msg(chan, '%s is trusted' % trustnick)
 					else:
 						irc.msg(chan, '%s is not trusted' % trustnick)
@@ -436,10 +446,10 @@ def parse((line, irc)):
 		elif matchcmd(cmdline, '#trust'):
 			if matchcmd(cmdline, '#trust', 'nick'):
 				trustnick = parsecmd(cmdline, 'nick')
-				if isauthorized(irc, nick):
+				if isauthorized(irc, chan, nick):
 					account = getaccount(irc, trustnick)
 					if account:
-						addtrusted(account)
+						addtrusted(chan, account)
 					else:
 						irc.msg(chan, 'Failed to get account for %s' % trustnick)
 			else:
@@ -447,12 +457,12 @@ def parse((line, irc)):
 		elif matchcmd(cmdline, '#untrust'):
 			if matchcmd(cmdline, '#untrust', 'nick'):
 				untrustnick = parsecmd(cmdline, 'nick')
-				if isauthorized(irc, nick):
+				if isauthorized(irc, chan, nick):
 					account = getaccount(irc, untrustnick)
 					if account:
 						godslock.acquire()
-						if account not in gods:
-							rmtrusted(untrustnick)
+						if chan not in gods or account not in gods[chan]:
+							rmtrusted(chan, untrustnick)
 						godslock.release()
 					else:
 						irc.msg(chan, 'Failed to get account for %s' % untrustnick)
@@ -460,12 +470,13 @@ def parse((line, irc)):
 				irc.msg(chan, 'Usage #untrust nick')
 		elif matchcmd(cmdline, '#ls-trusted'):
 			trustedlock.acquire()
-			irc.msg(nick, ', '.join(trusted))
+			if chan in trusted:
+				irc.msg(nick, '%s: %s' % (chan, ', '.join(trusted[chan])))
 			trustedlock.release()
 		elif matchcmd(cmdline, '#invite'):
 			if matchcmd(cmdline, '#invite', 'nick'):
 				invitenick = parsecmd(cmdline, 'nick')
-				if isauthorized(irc, nick):
+				if isauthorized(irc, chan, nick):
 					irc.send('INVITE %s %s' % (invitenick, chan))
 			else:
 				irc.msg(chan, 'Usage #invite nick')
@@ -511,7 +522,7 @@ def parse((line, irc)):
 		if getaccountcheckvalue(whoisnick) == None:
 			setaccountcheckvalue(whoisnick, '') # Mark as failed, '' is used because None is already reserved
 	elif line[1] == 'INVITE' and line[2] == irc.nick and line[3][1:] in irc.chan.split(' '):
-		if isauthorized(irc, nick):
+		if isauthorized(irc, line[3], nick):
 			irc.send('JOIN ' + line[3])
 	elif line[1] == '482':
 		irc.msg(line[3], 'Not op')
