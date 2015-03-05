@@ -420,7 +420,7 @@ def parse((line, irc)):
 				kicknick, kickreason = parsecmd(cmdline, 'nick {reason}')
 				if kicknick.lower() == irc.nick:
 					irc.send('KICK %s %s :Fuck you' % (chan, nick))
-				elif random.randint(0,9) == 0 and len(line) == 5:
+				elif random.randint(0,9) == 0 and not kickreason:
 					irc.send('KICK %s %s :Bam' % (chan, nick))
 				else:
 					if isauthorized(irc, chan, nick):
