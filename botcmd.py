@@ -430,7 +430,7 @@ def parse((line, irc)):
 		elif matchcmd(cmdline, '#src'):
 			irc.msg(reply, 'https://github.com/JuEeHa/oonbotti2')
 		elif matchcmd(cmdline, '#prefix') and chan == '#osdev-offtopic':
-			irc.msg(reply, 'gopher://smar.fi:7070/0/hash-prefix')
+			irc.msg(reply, 'gopher://ayu.smar.fi:7070/0/hash-prefix')
 		elif matchcmd(cmdline, '#msg'):
 			if matchcmd(cmdline, '#msg', 'nick {message}'):
 				msgnick, message = parsecmd(cmdline, 'nick {message}')
