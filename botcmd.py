@@ -503,7 +503,8 @@ def parse((line, irc)):
 			irc.msg(reply, 'Nothing here')
 		elif cmdline[0] in [irc.nick, irc.nick+',', irc.nick+':']:
 			question = parsecmd(cmdline, '{question}')
-			irc.msg(reply, '%s: %s' % (nick, doctor.respond(question)))
+			if len(question) < 2 or question[:2] != ':D': # Mandated by #osdev-offtopic law
+				irc.msg(reply, '%s: %s' % (nick, doctor.respond(question)))
 		elif die_expr.match(cmdline[0]):
 			die = cmdline[0][1:].split('d')
 			times = int(die[0]) if die[0] else 1
