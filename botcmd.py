@@ -186,8 +186,8 @@ def chmode(irc, chan, nick, mode, args):
 		if isauthorized(irc, chan, nick):
 			irc.send('MODE %s %s %s' % (chan, mode, nick))
 	else:
-		for name in args:
-			if isauthorized(irc, chan, nick):
+		if isauthorized(irc, chan, nick):
+			for name in args:
 				irc.send('MODE %s %s %s' % (chan, mode, name))
 
 def istrusted(chan, account):
