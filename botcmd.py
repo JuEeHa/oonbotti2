@@ -10,15 +10,19 @@ blacklist = ['bslsk05']
 
 doctor = eliza.eliza()
 
+# channel: [user1, user2, ..., userN]
 trusted = {}
 trustedlock = threading.Lock()
 gods = {}
 godslock = threading.Lock()
 
+# receiver: [(sender1, message1), (sender2, message2), ..., (senderN, messageN)]
 msgs = {}
 msgslock = threading.Lock()
 
-accountcheck = {}
+# (ID, nick, account)
+accountcheck = []
+accountcheckid = 0
 accountchecklock = threading.Lock()
 
 die_expr=re.compile("#[0-9]*d([0-9]+|%)")
@@ -196,48 +200,79 @@ def istrusted(chan, account):
 		return False
 
 def initaccountcheck(nick):
+	global accountcheck, accountcheckid, accountchecklock
+	
+	accountchecklock.acquire()
+	id = accountcheckid
+	accountcheck.append((id, nick, None))
+	accountcheckid += 1
+	accountchecklock.release()
+	
+	return id
+
+# Warning: this does no locking, should only be used internally
+# The index returned cannot be guaranteed valid if lock is released between call to getindexbyaccountcheckid and use!
+def getindexbyaccountcheckid(id):
+	global accountcheck
+	
+	for index in range(len(accountcheck)):
+		ckid, cknick, ckaccount = accountcheck[index]
+		if ckid == id:
+			return index
+	
+	return None
+
+def setaccountcheckvalue(id, value):
 	global accountcheck, accountchecklock
 	
 	accountchecklock.acquire()
-	accountcheck[nick] = None
+	index = getindexbyaccountcheckid(id)
+	if index is not None:
+		ckid, nick, ckvalue = accountcheck[index]
+		accountcheck[index] = (id, nick, value)
 	accountchecklock.release()
 
-def setaccountcheckvalue(nick, value):
+def getaccountcheckvalue(id):
 	global accountcheck, accountchecklock
 	
 	accountchecklock.acquire()
-	if nick in accountcheck:
-		accountcheck[nick] = value
-	accountchecklock.release()
-
-def getaccountcheckvalue(nick):
-	global accountcheck, accountchecklock
-	
-	accountchecklock.acquire()
-	if nick in accountcheck:
-		value = accountcheck[nick]
+	index = getindexbyaccountcheckid(id)
+	if index is not None:
+		 ckid, cknick, value = accountcheck[index]
 	accountchecklock.release()
 	
 	return value
 
-def removeaccountcheck(nick):
+def removeaccountcheck(id):
 	global accountcheck, accountchecklock
 	
 	accountchecklock.acquire()
-	if nick in accountcheck:
-		del accountcheck[nick]
+	index = getindexbyaccountcheckid(id)
+	if index is not None:
+		del accountcheck[index]
 	accountchecklock.release()
 
+def getaccountcheckidbynick(nick):
+	global accountcheck, accountchecklock
+	
+	accountchecklock.acquire()
+	getid = lambda (id, nick, account): id
+	filterbynick = lambda (id, cknick, account): cknick == nick
+	ids = map(getid, filter(filterbynick, accountcheck))
+	accountchecklock.release()
+	
+	return ids
+
 def getaccount(irc, nick):	
-	initaccountcheck(nick)
+	id = initaccountcheck(nick)
 	irc.send('WHOIS ' + nick)
-	cron.queuejob(5, (lambda : setaccountcheckvalue(nick, '')))
+	cron.queuejob(5, (lambda : setaccountcheckvalue(id, '')))
 	
 	account = None
 	while account == None:
-		account = getaccountcheckvalue(nick)
+		account = getaccountcheckvalue(id)
 		time.sleep(0.1)
-	removeaccountcheck(nick)
+	removeaccountcheck(id)
 	
 	if account == '': # '' Signifies failure
 		return None
@@ -530,11 +565,13 @@ def parse((line, irc)):
 	elif line[1] == '330': # WHOIS: is logged in as
 		whoisnick = line[3]
 		account = line[4]
-		setaccountcheckvalue(whoisnick, account)
+		for id in getaccountcheckidbynick(whoisnick):
+			setaccountcheckvalue(id, account)
 	elif line[1] == '318': # WHOIS: End of /WHOIS list.
 		whoisnick = line[3]
-		if getaccountcheckvalue(whoisnick) == None:
-			setaccountcheckvalue(whoisnick, '') # Mark as failed, '' is used because None is already reserved
+		for id in getaccountcheckidbynick(whoisnick):
+			if getaccountcheckvalue(id) == None:
+				setaccountcheckvalue(id, '') # Mark as failed, '' is used because None is already reserved
 	elif line[1] == 'INVITE' and line[2] == irc.nick and line[3][1:] in irc.chan.split(' '):
 		if isauthorized(irc, line[3], nick):
 			irc.send('JOIN ' + line[3])
