@@ -182,13 +182,21 @@ loadtrusted()
 loadgods()
 
 def chmode(irc, chan, nick, mode, args):
-	if args == ['']:
-		if isauthorized(irc, chan, nick):
-			irc.send('MODE %s %s %s' % (chan, mode, nick))
-	else:
-		if isauthorized(irc, chan, nick):
-			for name in args:
-				irc.send('MODE %s %s %s' % (chan, mode, name))
+	set_unset = mode[0]
+	mode = mode[1:]
+	
+	if isauthorized(irc, chan, nick):
+		if args == ['']:
+			irc.send('MODE %s %s %s' % (chan, set_unset+mode, nick))
+		else:
+			nicks = []
+			for nick in args:
+				nicks.append(nick)
+				if len(nicks) == 4:
+					irc.send('MODE %s %s %s' % (chan, set_unset+mode*4, ' '.join(nicks)))
+					nicks = []
+			if nicks:
+				irc.send('MODE %s %s %s' % (chan, set_unset+mode*len(nicks), ' '.join(nicks)))
 
 def istrusted(chan, account):
 	trustedlock.acquire()
