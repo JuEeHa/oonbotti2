@@ -581,7 +581,7 @@ def parse((line, irc)):
 			if getaccountcheckvalue(id) == None:
 				setaccountcheckvalue(id, '') # Mark as failed, '' is used because None is already reserved
 	elif line[1] == 'INVITE' and line[2] == irc.nick and line[3][1:] in irc.chan.split(' '):
-		if isauthorized(irc, line[3], nick):
+		if isauthorized(irc, line[3][1:], nick):
 			irc.send('JOIN ' + line[3])
 	elif line[1] == '482':
 		irc.msg(line[3], 'Not op')
