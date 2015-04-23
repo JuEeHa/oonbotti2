@@ -445,7 +445,7 @@ def parse((line, irc)):
 		
 		if matchcmd(cmdline, '#echo'):
 			text = parsecmd(cmdline, '{text}')
-			irc.msg(reply, zwsp+text)
+			irc.msg(chan, zwsp+text)
 		elif matchcmd(cmdline, '#op'):
 			args = parsecmd(cmdline, '{args}')
 			chmode(irc, chan, nick, '+o', args.split(' '))
