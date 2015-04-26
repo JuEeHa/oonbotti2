@@ -25,7 +25,7 @@ accountcheck = []
 accountcheckid = 0
 accountchecklock = threading.Lock()
 
-die_expr=re.compile("#[0-9]*d([0-9]+|%)")
+die_expr=re.compile("#[0-9]*d([0-9]+|%)([+-][0-9]+)?")
 
 class Cron(threading.Thread):
 	def __init__(self):
@@ -551,7 +551,19 @@ def parse((line, irc)):
 		elif die_expr.match(cmdline[0]):
 			die = cmdline[0][1:].split('d')
 			times = int(die[0]) if die[0] else 1
+			
+			if '+' in die[1]:
+				split = die[1].index('+')
+				plus = int(die[1][split + 1:])
+				die[1] = die[1][:split]
+			elif '-' in die[1]:
+				split = die[1].index('-')
+				plus = -int(die[1][split + 1:])
+				die[1] = die[1][:split]
+			else:
+				plus = 0
 			die = '%' if die[1] == '%' else int(die[1])
+			
 			if die == '%':
 				if times != 1:
 					irc.msg(reply, 'Not supported')
@@ -566,10 +578,18 @@ def parse((line, irc)):
 			else:
 				rolls = [random.randint(1, die) for i in xrange(times)]
 				result = reduce((lambda x, y: x + y), rolls)
+				
 				if times > 1:
-					irc.msg(reply, '%s (%s)' % (str(result), ', '.join([str(i) for i in rolls])))
+					text = '%s (%s)' % (str(result), ', '.join([str(i) for i in rolls]))
 				else:
-					irc.msg(reply, str(result))
+					text = str(result)
+				
+				if plus > 0:
+					text = '%i (%s + %i)' % (result + plus, text, plus)
+				elif plus < 0:
+					text = '%i (%s - %i)' % (result + plus, text, -plus)
+				
+				irc.msg(reply, text)
 	elif line[1] == '330': # WHOIS: is logged in as
 		whoisnick = line[3]
 		account = line[4]
