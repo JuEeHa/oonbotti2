@@ -422,10 +422,10 @@ def parse((line, irc)):
 	
 	if nick in blacklist:
 		return
-	elif len(line) >= 4 and len(line[3]) >= 4 and line[3][:len(zwsp)+1] == ':'+zwsp: # If line begins with ZWSP
+	elif len(line) >= 4 and len(line[3]) >= len(zwsp)+1 and line[3][:len(zwsp)+1] == ':'+zwsp: # If line begins with ZWSP
 		return
 	
-	if line[1]=='PRIVMSG':
+	if line[1]=='PRIVMSG' and line[3][:2] != ': ':
 		reply = chan
 		
 		cmdline = [line[3][1:]] + line[4:]
@@ -443,7 +443,7 @@ def parse((line, irc)):
 			else:
 				irc.msg(chan, 'Usage #chan channel command')
 		
-		if matchcmd(cmdline, '#echo'):
+		elif matchcmd(cmdline, '#echo'):
 			text = parsecmd(cmdline, '{text}')
 			irc.msg(reply, zwsp+text)
 		elif matchcmd(cmdline, '#op'):
