@@ -443,7 +443,7 @@ def parse((line, irc)):
 			else:
 				irc.msg(chan, 'Usage #chan channel command')
 		
-		elif matchcmd(cmdline, '#echo'):
+		if matchcmd(cmdline, '#echo'):
 			text = parsecmd(cmdline, '{text}')
 			irc.msg(reply, zwsp+text)
 		elif matchcmd(cmdline, '#op'):
