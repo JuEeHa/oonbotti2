@@ -589,7 +589,7 @@ def parse((line, irc)):
 				elif plus < 0:
 					text = '%i (%s - %i)' % (result + plus, text, -plus)
 				
-				irc.msg(reply, text)
+				irc.msg(reply, zwsp + text)
 	elif line[1] == '330': # WHOIS: is logged in as
 		whoisnick = line[3]
 		account = line[4]
