@@ -292,7 +292,7 @@ def isauthorized(irc, chan, nick):
 	if account:
 		return istrusted(chan, account)
 	else:
-		irc.msg(nick, 'Identify with NickServ')
+		irc.msg(nick, zwsp + 'Identify with NickServ')
 
 class ArgsfmtError(Exception):
 	def __init__(self, msg):
@@ -441,7 +441,7 @@ def parse((line, irc)):
 					chan = newchan
 					cmdline = newcmdline
 			else:
-				irc.msg(chan, 'Usage #chan channel command')
+				irc.msg(chan, zwsp + 'Usage #chan channel command')
 		
 		if matchcmd(cmdline, '#echo'):
 			text = parsecmd(cmdline, '{text}')
@@ -469,11 +469,11 @@ def parse((line, irc)):
 					if isauthorized(irc, chan, nick):
 						irc.send('KICK %s %s :%s'%(chan, kicknick, kickreason))
 			else:
-				irc.msg(reply, 'Usage #kick nick reason')
+				irc.msg(reply, zwsp + 'Usage #kick nick reason')
 		elif matchcmd(cmdline, '#src'):
-			irc.msg(reply, 'https://github.com/JuEeHa/oonbotti2')
+			irc.msg(reply, zwsp + 'https://github.com/JuEeHa/oonbotti2')
 		elif matchcmd(cmdline, '#prefix') and chan == '#osdev-offtopic':
-			irc.msg(reply, 'gopher://ayu.smar.fi:7070/0/hash-prefix')
+			irc.msg(reply, zwsp + 'gopher://ayu.smar.fi:7070/0/hash-prefix')
 		elif matchcmd(cmdline, '#msg'):
 			if matchcmd(cmdline, '#msg', 'nick {message}'):
 				msgnick, message = parsecmd(cmdline, 'nick {message}')
@@ -483,7 +483,7 @@ def parse((line, irc)):
 				msgs[msgnick].append((nick, message))
 				msgslock.release()
 			else:
-				irc.msg(reply, 'Usage: #msg nick message')
+				irc.msg(reply, zwsp + 'Usage: #msg nick message')
 		elif matchcmd(cmdline, '#trusted?'):
 			if matchcmd(cmdline, '#trusted?', '[nick]'):
 				trustnick = parsecmd(cmdline, '[nick]')
@@ -492,13 +492,13 @@ def parse((line, irc)):
 				account = getaccount(irc, trustnick)
 				if account:
 					if istrusted(chan, account):
-						irc.msg(reply, '%s is trusted' % trustnick)
+						irc.msg(reply, zwsp + '%s is trusted' % trustnick)
 					else:
-						irc.msg(reply, '%s is not trusted' % trustnick)
+						irc.msg(reply, zwsp + '%s is not trusted' % trustnick)
 				else:
-					irc.msg(reply, 'Failed to get account for %s' % trustnick)
+					irc.msg(reply, zwsp + 'Failed to get account for %s' % trustnick)
 			else:
-				irc.msg(reply, 'Usage: #trusted? [nick]')
+				irc.msg(reply, zwsp + 'Usage: #trusted? [nick]')
 		elif matchcmd(cmdline, '#trust'):
 			if matchcmd(cmdline, '#trust', 'nick'):
 				trustnick = parsecmd(cmdline, 'nick')
@@ -507,9 +507,9 @@ def parse((line, irc)):
 					if account:
 						addtrusted(chan, account)
 					else:
-						irc.msg(reply, 'Failed to get account for %s' % trustnick)
+						irc.msg(reply, zwsp + 'Failed to get account for %s' % trustnick)
 			else:
-				irc.msg(reply, 'Usage #trust nick')
+				irc.msg(reply, zwsp + 'Usage #trust nick')
 		elif matchcmd(cmdline, '#untrust'):
 			if matchcmd(cmdline, '#untrust', 'nick'):
 				untrustnick = parsecmd(cmdline, 'nick')
@@ -521,13 +521,13 @@ def parse((line, irc)):
 							rmtrusted(chan, untrustnick)
 						godslock.release()
 					else:
-						irc.msg(reply, 'Failed to get account for %s' % untrustnick)
+						irc.msg(reply, zwsp + 'Failed to get account for %s' % untrustnick)
 			else:
-				irc.msg(reply, 'Usage #untrust nick')
+				irc.msg(reply, zwsp + 'Usage #untrust nick')
 		elif matchcmd(cmdline, '#ls-trusted'):
 			trustedlock.acquire()
 			if chan in trusted:
-				irc.msg(nick, '%s: %s' % (chan, ', '.join(trusted[chan])))
+				irc.msg(nick, zwsp + '%s: %s' % (chan, ', '.join(trusted[chan])))
 			trustedlock.release()
 		elif matchcmd(cmdline, '#invite'):
 			if matchcmd(cmdline, '#invite', 'nick'):
@@ -535,7 +535,7 @@ def parse((line, irc)):
 				if isauthorized(irc, chan, nick):
 					irc.send('INVITE %s %s' % (invitenick, chan))
 			else:
-				irc.msg(reply, 'Usage #invite nick')
+				irc.msg(reply, zwsp + 'Usage #invite nick')
 		elif matchcmd(cmdline, '#help'):
 			if matchcmd(cmdline, '#help', '[command]'):
 				command = parsecmd(cmdline, '[command]')
@@ -543,11 +543,11 @@ def parse((line, irc)):
 				if helptext:
 					irc.msg(reply, zwsp+helptext)
 		elif matchcmd(cmdline, '#esoteric') and chan == '#esoteric':
-			irc.msg(reply, 'Nothing here')
+			irc.msg(reply, zwsp + 'Nothing here')
 		elif cmdline[0] in [irc.nick, irc.nick+',', irc.nick+':']:
 			question = parsecmd(cmdline, '{question}')
 			if len(question) < 2 or question[:2] != ':D': # Mandated by #osdev-offtopic law
-				irc.msg(reply, '%s: %s' % (nick, doctor.respond(question)))
+				irc.msg(reply, zwsp + '%s: %s' % (nick, doctor.respond(question)))
 		elif die_expr.match(cmdline[0]):
 			die = cmdline[0][1:].split('d')
 			times = int(die[0]) if die[0] else 1
@@ -566,15 +566,15 @@ def parse((line, irc)):
 			
 			if die == '%':
 				if times != 1:
-					irc.msg(reply, 'Not supported')
+					irc.msg(reply, zwsp + 'Not supported')
 				else:
-					irc.msg(reply, '%s%s' % (random.randint(0,9), random.randint(0,9)))
+					irc.msg(reply, zwsp + '%s%s' % (random.randint(0,9), random.randint(0,9)))
 			elif die < 2:
-				irc.msg(reply, 'This die is not available in your space-time region.')
+				irc.msg(reply, zwsp + 'This die is not available in your space-time region.')
 			elif times < 1:
-				irc.msg(reply, 'What exactly do you want me to do?')
+				irc.msg(reply, zwsp + 'What exactly do you want me to do?')
 			elif times > 128:
-				irc.msg(reply, 'Sorry, I don\'t have that many. Can I borrow yours?')
+				irc.msg(reply, zwsp + 'Sorry, I don\'t have that many. Can I borrow yours?')
 			else:
 				rolls = [random.randint(1, die) for i in xrange(times)]
 				result = reduce((lambda x, y: x + y), rolls)
@@ -604,7 +604,7 @@ def parse((line, irc)):
 		if isauthorized(irc, line[3][1:], nick):
 			irc.send('JOIN ' + line[3])
 	elif line[1] == '482':
-		irc.msg(line[3], 'Not op')
+		irc.msg(line[3], zwsp + 'Not op')
 	
 	msgslock.acquire()
 	if (line[1] == 'PRIVMSG' or line[1] == 'JOIN') and nick in msgs:
