@@ -4,7 +4,7 @@ import random
 import re
 import time
 
-concmd=['/q', '/lt', '/st', '/lg']
+concmd=['/q', '/lt', '/st', '/lg', '/lm', '/sm']
 
 blacklist = ['bslsk05']
 
@@ -73,6 +73,7 @@ def loadmessages():
 	global msgs, msgslock
 	
 	msgslock.acquire()
+	msgs = {}
 	f = open('msgs.txt', 'r')
 	
 	for line in f:
@@ -624,6 +625,10 @@ def execcmd(cmdline):
 		savetrusted()
 	elif cmdline[0] == '/lg':
 		loadgods()
+	elif cmdline[0] == '/lm':
+		loadmessages()
+	elif cmdline[0] == '/sm':
+		savemessages()
 
 def usage(cmd, message = True):
 	usage = {'#echo': 'text',
