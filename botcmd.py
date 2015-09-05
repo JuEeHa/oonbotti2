@@ -78,7 +78,7 @@ def loadmessages():
 	for line in f:
 		while len(line) > 0 and line[-1] == '\n':
 			line = line[:-1]
-		if len(line) > 0:
+		if len(line.split('\t')) == 3:
 			receiver, sender, msg = line.split('\t')
 			if receiver not in msgs:
 				msgs[receiver] = []
