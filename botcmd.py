@@ -516,6 +516,10 @@ def parse((line, irc)):
 				untrustnick = parsecmd(cmdline, 'nick')
 				if isauthorized(irc, chan, nick):
 					account = getaccount(irc, untrustnick)
+					# If account can't be found (e.g. it has been deleted, use the parameter as-is
+					if not account:
+						if istrusted(chan, untrustnick):
+							account = untrustnick
 					if account:
 						godslock.acquire()
 						if chan not in gods or account not in gods[chan]:
