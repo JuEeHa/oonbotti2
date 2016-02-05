@@ -528,7 +528,21 @@ def parse((line, irc)):
 		elif matchcmd(cmdline, '#ls-trusted'):
 			trustedlock.acquire()
 			if chan in trusted:
-				irc.msg(nick, zwsp + '%s: %s' % (chan, ', '.join(trusted[chan])))
+				lines = []
+				line = ''
+				for account in trusted[chan]:
+					if line == '':
+						line = account
+					elif len(line + ', ' + account) <= 255: # Playing it safe not to get truncated
+						line += ', ' + account
+					else:
+						lines.append(line)
+						line = account
+				if line != '':
+					lines.append(line)
+
+				for line in lines:
+					irc.msg(nick, zwsp + '%s: %s' % (chan, line))
 			trustedlock.release()
 		elif matchcmd(cmdline, '#invite'):
 			if matchcmd(cmdline, '#invite', 'nick'):
