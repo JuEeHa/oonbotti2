@@ -25,7 +25,7 @@ accountcheck = []
 accountcheckid = 0
 accountchecklock = threading.Lock()
 
-die_expr=re.compile("#[0-9]*d([0-9]+|%)([+-][0-9]+)?")
+die_expr=re.compile("#[0-9]*d([0-9]+|%)([+-][0-9]+)?$")
 
 class Cron(threading.Thread):
 	def __init__(self):
