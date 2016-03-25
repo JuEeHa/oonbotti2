@@ -16,7 +16,7 @@ trustedlock = threading.Lock()
 gods = {}
 godslock = threading.Lock()
 
-# receiver: [(sender1, message1), (sender2, message2), ..., (senderN, messageN)]
+# receiver: [(sender1, origin1, message1), (sender2, origin2, message2), ..., (senderN, origin2, messageN)]
 msgs = {}
 msgslock = threading.Lock()
 
@@ -72,34 +72,32 @@ cron.start()
 def loadmessages():
 	global msgs, msgslock
 	
-	msgslock.acquire()
-	msgs = {}
-	f = open('msgs.txt', 'r')
-	
-	for line in f:
-		while len(line) > 0 and line[-1] == '\n':
-			line = line[:-1]
-		if len(line.split('\t')) == 3:
-			receiver, sender, msg = line.split('\t')
-			if receiver not in msgs:
-				msgs[receiver] = []
-			msgs[receiver].append((sender, msg))
-	
-	f.close()
-	msgslock.release()
+	with msgslock:
+		msgs = {}
+		f = open('msgs.txt', 'r')
+		
+		for line in f:
+			while len(line) > 0 and line[-1] == '\n':
+				line = line[:-1]
+			if len(line.split('\t')) == 4:
+				receiver, sender, origin, msg = line.split('\t')
+				if receiver not in msgs:
+					msgs[receiver] = []
+				msgs[receiver].append((sender, origin, msg))
+		
+		f.close()
 
 def savemessages():
 	global msgs, msgslock
 	
-	msgslock.acquire()
-	f=open('msgs.txt', 'w')
-	
-	for receiver in msgs:
-		for sender, msg in msgs[receiver]:
-				f.write('%s\t%s\t%s\n' % (receiver, sender, msg))
-	
-	f.close()
-	msgslock.release()
+	with msgslock:
+		f=open('msgs.txt', 'w')
+		
+		for receiver in msgs:
+			for sender, origin, msg in msgs[receiver]:
+					f.write('%s\t%s\t%s\t%s\n' % (receiver, sender, origin, msg))
+		
+		f.close()
 
 loadmessages()
 
@@ -478,11 +476,14 @@ def parse((line, irc)):
 		elif matchcmd(cmdline, '#msg'):
 			if matchcmd(cmdline, '#msg', 'nick {message}'):
 				msgnick, message = parsecmd(cmdline, 'nick {message}')
-				msgslock.acquire()
-				if msgnick not in msgs:
-					msgs[msgnick] = []
-				msgs[msgnick].append((nick, message))
-				msgslock.release()
+				if chan == nick: # In a query:
+					origin = "[query]"
+				else: # In a channel
+					origin = chan
+				with msgslock:
+					if msgnick not in msgs:
+						msgs[msgnick] = []
+					msgs[msgnick].append((nick, origin, message))
 			else:
 				irc.msg(reply, zwsp + 'Usage: #msg nick message')
 		elif matchcmd(cmdline, '#trusted?'):
@@ -625,11 +626,10 @@ def parse((line, irc)):
 	elif line[1] == '482':
 		irc.msg(line[3], zwsp + 'Not op')
 	
-	msgslock.acquire()
-	if (line[1] == 'PRIVMSG' or line[1] == 'JOIN') and nick in msgs:
-		for sender, msg in msgs.pop(nick):
-			irc.msg(nick, '<%s> %s' % (sender, msg))
-	msgslock.release()
+	with msgslock:
+		if (line[1] == 'PRIVMSG' or line[1] == 'JOIN') and nick in msgs:
+			for sender, origin, msg in msgs.pop(nick):
+				irc.msg(nick, '%s <%s> %s' % (origin, sender, msg))
 
 def execcmd(cmdline):
 	if cmdline[0] == '/q':
