@@ -484,6 +484,7 @@ def parse((line, irc)):
 					if msgnick not in msgs:
 						msgs[msgnick] = []
 					msgs[msgnick].append((nick, origin, message))
+				savemessages()
 			else:
 				irc.msg(reply, zwsp + 'Usage: #msg nick message')
 		elif matchcmd(cmdline, '#trusted?'):
@@ -508,6 +509,7 @@ def parse((line, irc)):
 					account = getaccount(irc, trustnick)
 					if account:
 						addtrusted(chan, account)
+						savetrusted()
 					else:
 						irc.msg(reply, zwsp + 'Failed to get account for %s' % trustnick)
 			else:
@@ -526,6 +528,7 @@ def parse((line, irc)):
 						if chan not in gods or account not in gods[chan]:
 							rmtrusted(chan, untrustnick)
 						godslock.release()
+						savetrusted()
 					else:
 						irc.msg(reply, zwsp + 'Failed to get account for %s' % untrustnick)
 			else:
@@ -626,10 +629,14 @@ def parse((line, irc)):
 	elif line[1] == '482':
 		irc.msg(line[3], zwsp + 'Not op')
 	
+	msgs_changed = False
 	with msgslock:
 		if (line[1] == 'PRIVMSG' or line[1] == 'JOIN') and nick in msgs:
 			for sender, origin, msg in msgs.pop(nick):
 				irc.msg(nick, '%s <%s> %s' % (origin, sender, msg))
+			msgs_changed = True
+	if msgs_changed:
+		savemessages()
 
 def execcmd(cmdline):
 	if cmdline[0] == '/q':
