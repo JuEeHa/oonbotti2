@@ -633,7 +633,7 @@ def parse((line, irc)):
 	with msgslock:
 		if (line[1] == 'PRIVMSG' or line[1] == 'JOIN') and nick in msgs:
 			for sender, origin, msg in msgs.pop(nick):
-				irc.msg(nick, '%s <%s> %s' % (origin, sender, msg))
+				irc.msg(nick, zwsp + '%s <%s> %s' % (origin, sender, msg))
 			msgs_changed = True
 	if msgs_changed:
 		savemessages()
