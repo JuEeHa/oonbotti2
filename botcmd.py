@@ -640,9 +640,6 @@ def parse((line, irc)):
 
 def execcmd(cmdline):
 	if cmdline[0] == '/q':
-		savemessages()
-		savetrusted()
-		
 		cron.ctrl('QUIT')
 	elif cmdline[0] == '/lt':
 		loadtrusted()
