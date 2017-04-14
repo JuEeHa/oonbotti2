@@ -553,13 +553,7 @@ def parse((line, irc)):
 					irc.msg(nick, zwsp + '%s: %s' % (chan, line))
 			trustedlock.release()
 		elif matchcmd(cmdline, '#invite'):
-			if matchcmd(cmdline, '#invite', 'nick'):
-				invitenick = parsecmd(cmdline, 'nick')
-				if isauthorized(irc, chan, nick):
-					irc.send('INVITE %s %s' % (invitenick, chan))
-					irc.msg(invitenick, zwsp + '%s has invited you to %s' % (nick, chan))
-			else:
-				irc.msg(reply, zwsp + 'Usage #invite nick')
+			irc.msg(chan, zwsp + '%s: #invite has been removed. Use manual invite' % nick)
 		elif matchcmd(cmdline, '#help'):
 			if matchcmd(cmdline, '#help', '[command]'):
 				command = parsecmd(cmdline, '[command]')
@@ -666,7 +660,6 @@ def usage(cmd, message = True):
 	         '#trust': 'nick',
 	         '#untrust': 'nick',
 	         '#ls-trusted': '',
-	         '#invite': 'nick',
 	         '#chan': 'channel command',
 	         '#help': '[command]'}
 	
@@ -691,12 +684,11 @@ def help(cmd):
 	            '#trust': 'add nick to trusted list',
 	            '#untrust': 'remove nick from trusted list',
 	            '#ls-trusted': 'list nicks that are trusted. use only in a query',
-	            '#invite': 'invites nick to channel',
 	            '#chan': 'Runs the command as if it was sent on the specified channel. Requires user to be trusted',
 	            '#help': 'give short info of command or list commands'}
 	
 	if cmd=='':
-		return '#echo #op #deop #voice #devoice #kick #src #msg #trusted? #trust #untrust #ls-trusted #invite #chan #help'
+		return '#echo #op #deop #voice #devoice #kick #src #msg #trusted? #trust #untrust #ls-trusted #chan #help'
 	elif cmd=='me':
 		return 'I shall.'
 	elif cmd in helptext:
