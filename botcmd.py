@@ -557,6 +557,7 @@ def parse((line, irc)):
 				invitenick = parsecmd(cmdline, 'nick')
 				if isauthorized(irc, chan, nick):
 					irc.send('INVITE %s %s' % (invitenick, chan))
+					irc.msg(invitenick, zwsp + '%s has invited you to %s' % (nick, chan))
 			else:
 				irc.msg(reply, zwsp + 'Usage #invite nick')
 		elif matchcmd(cmdline, '#help'):
