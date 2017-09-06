@@ -1,4 +1,5 @@
-import eliza
+# TODO: python3-ify eliza and switch it back on
+#import eliza
 import threading
 import random
 import re
@@ -8,7 +9,8 @@ concmd=['/q', '/lt', '/st', '/lg', '/lm', '/sm']
 
 blacklist = ['bslsk05']
 
-doctor = eliza.eliza()
+# TODO: python3-ify eliza and switch it back on
+#doctor = eliza.eliza()
 
 # channel: [user1, user2, ..., userN]
 trusted = {}
@@ -26,6 +28,17 @@ accountcheckid = 0
 accountchecklock = threading.Lock()
 
 die_expr=re.compile("#[0-9]*d([0-9]+|%)([+-][0-9]+)?$")
+
+def initialize():
+	global cron
+
+	cron = Cron()
+	cron.start()
+
+	loadmessages()
+
+	loadtrusted()
+	loadgods()
 
 class Cron(threading.Thread):
 	def __init__(self):
@@ -58,16 +71,13 @@ class Cron(threading.Thread):
 			self.cronctrllock.release()
 			
 			self.timedjobslock.acquire()
-			self.timedjobs = map((lambda (time, fn): (time-1, fn)), self.timedjobs)
-			torun = map((lambda (time, fn): fn), filter((lambda (time, fn): time<=0), self.timedjobs))
-			self.timedjobs = filter((lambda (time, fn): time>0), self.timedjobs)
+			self.timedjobs = [(time-1, fn) for (time, fn) in self.timedjobs]
+			torun = [fn for time, fn in self.timedjobs if time<=0]
+			self.timedjobs = [(time, fn) for (time, fn) in self.timedjobs if time>0]
 			self.timedjobslock.release()
 			
 			for fn in torun:
 				fn()
-
-cron=Cron()
-cron.start()
 
 def loadmessages():
 	global msgs, msgslock
@@ -98,8 +108,6 @@ def savemessages():
 					f.write('%s\t%s\t%s\t%s\n' % (receiver, sender, origin, msg))
 		
 		f.close()
-
-loadmessages()
 
 def addtrusted(chan, account):
 	global trusted, trustedlock
@@ -177,9 +185,6 @@ def savetrusted():
 	f.close
 	trustedlock.release()
 	
-loadtrusted()
-loadgods()
-
 def chmode(irc, chan, nick, mode, args):
 	set_unset = mode[0]
 	mode = mode[1:]
@@ -263,9 +268,7 @@ def getaccountcheckidbynick(nick):
 	global accountcheck, accountchecklock
 	
 	accountchecklock.acquire()
-	getid = lambda (id, nick, account): id
-	filterbynick = lambda (id, cknick, account): cknick == nick
-	ids = map(getid, filter(filterbynick, accountcheck))
+	ids = [id for id, cknick, account in accountcheck if cknick == nick]
 	accountchecklock.release()
 	
 	return ids
@@ -407,24 +410,32 @@ def parsecmd(line, args):
 	else:
 		return out
 	
-def parse((line, irc)):
-	global blacklist
-	global msgs, msgslock
-	global trusted, trustedlock, gods, godslock
-	global doctor, die_expr
-	
-	line = line.split(' ')
-	nick = line[0].split('!')[0][1:]
-	chan = line[2] if line[2][0] == '#' else nick
-	
+def check_send_messages():
+	msgs_changed = False
+	with msgslock:
+		if (line[1] == 'PRIVMSG' or line[1] == 'JOIN') and nick in msgs:
+			for sender, origin, msg in msgs.pop(nick):
+				irc.msg(nick, zwsp + '%s <%s> %s' % (origin, sender, msg))
+			msgs_changed = True
+	if msgs_changed:
+		savemessages()
+
+def should_ignore_message():
 	zwsp = '\xe2\x80\x8b'
 	
 	if nick in blacklist:
-		return
+		return True
 	elif len(line) >= 4 and len(line[3]) >= len(zwsp)+1 and line[3][:len(zwsp)+1] == ':'+zwsp: # If line begins with ZWSP
+		return True
+
+	return False
+
+def handle_message(*, prefix, message, nick, channel, irc):
+	check_send_messages()
+	if should_ignore_message():
 		return
-	
-	if line[1]=='PRIVMSG' and line[3][:2] != ': ':
+
+	if line[3][:2] != ': ':
 		reply = chan
 		
 		cmdline = [line[3][1:]] + line[4:]
@@ -606,7 +617,13 @@ def parse((line, irc)):
 					text = '%i (%s - %i)' % (result + plus, text, -plus)
 				
 				irc.msg(reply, zwsp + text)
-	elif line[1] == '330': # WHOIS: is logged in as
+
+def handle_nonmessage(*, prefix, command, arguments, irc):
+	check_send_messages()
+	if should_ignore_message():
+		return
+
+	if line[1] == '330': # WHOIS: is logged in as
 		whoisnick = line[3]
 		account = line[4]
 		for id in getaccountcheckidbynick(whoisnick):
@@ -621,15 +638,20 @@ def parse((line, irc)):
 			irc.send('JOIN ' + line[3])
 	elif line[1] == '482':
 		irc.msg(line[3], zwsp + 'Not op')
+
+# TODO: move everything out of here
+def parse(arg):
+	line, irc = arg
+
+	global blacklist
+	global msgs, msgslock
+	global trusted, trustedlock, gods, godslock
+	global doctor, die_expr
+
+	line = line.split(' ')
+	nick = line[0].split('!')[0][1:]
+	chan = line[2] if line[2][0] == '#' else nick
 	
-	msgs_changed = False
-	with msgslock:
-		if (line[1] == 'PRIVMSG' or line[1] == 'JOIN') and nick in msgs:
-			for sender, origin, msg in msgs.pop(nick):
-				irc.msg(nick, zwsp + '%s <%s> %s' % (origin, sender, msg))
-			msgs_changed = True
-	if msgs_changed:
-		savemessages()
 
 def execcmd(cmdline):
 	if cmdline[0] == '/q':
