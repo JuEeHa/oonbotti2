@@ -4,3 +4,5 @@ gods.txt
 startcmd.txt
 *.pyc
 ircbot.sh
+__pycache__
+*.swp
