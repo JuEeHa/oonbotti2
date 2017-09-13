@@ -9,6 +9,8 @@ concmd=['/q', '/lt', '/st', '/lg', '/lm', '/sm']
 
 blacklist = ['bslsk05']
 
+zwsp = '\u200b'
+
 # TODO: python3-ify eliza and switch it back on
 #doctor = eliza.eliza()
 
@@ -410,19 +412,21 @@ def parsecmd(line, args):
 	else:
 		return out
 	
-def check_send_messages():
+def check_send_messages(*, nick, irc, command = None):
+	raw_nick = nick
+	nick = raw_nick.decode('utf-8')
+
 	msgs_changed = False
 	with msgslock:
-		if (line[1] == 'PRIVMSG' or line[1] == 'JOIN') and nick in msgs:
+		if (command is None or command == b'JOIN') and nick in msgs:
 			for sender, origin, msg in msgs.pop(nick):
-				irc.msg(nick, zwsp + '%s <%s> %s' % (origin, sender, msg))
+				irc.bot_response(raw_nick, '%s <%s> %s' % (origin, sender, msg))
 			msgs_changed = True
+
 	if msgs_changed:
 		savemessages()
 
 def should_ignore_message():
-	zwsp = '\xe2\x80\x8b'
-	
 	if nick in blacklist:
 		return True
 	elif len(line) >= 4 and len(line[3]) >= len(zwsp)+1 and line[3][:len(zwsp)+1] == ':'+zwsp: # If line begins with ZWSP
@@ -431,7 +435,7 @@ def should_ignore_message():
 	return False
 
 def handle_message(*, prefix, message, nick, channel, irc):
-	check_send_messages()
+	check_send_messages(nick = nick, irc = irc)
 	if should_ignore_message():
 		return
 
@@ -619,7 +623,7 @@ def handle_message(*, prefix, message, nick, channel, irc):
 				irc.msg(reply, zwsp + text)
 
 def handle_nonmessage(*, prefix, command, arguments, irc):
-	check_send_messages()
+	check_send_messages(command = command, nick = prefix.split(b'!')[0], irc = irc)
 	if should_ignore_message():
 		return
 
