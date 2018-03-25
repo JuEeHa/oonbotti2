@@ -585,7 +585,7 @@ def parse((line, irc)):
 					irc.msg(reply, zwsp + 'Not supported')
 				else:
 					irc.msg(reply, zwsp + '%s%s' % (random.randint(0,9), random.randint(0,9)))
-			elif die < 2:
+			elif die < 1:
 				irc.msg(reply, zwsp + 'This die is not available in your space-time region.')
 			elif times < 1:
 				irc.msg(reply, zwsp + 'What exactly do you want me to do?')
