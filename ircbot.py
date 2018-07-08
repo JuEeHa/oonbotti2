@@ -190,8 +190,9 @@ class Threadwrapper(threading.Thread):
 		self.func(self.arg)
 
 if len(sys.argv)!=5:
-	print 'Usage: ' + sys.argv[0] + ' server port channel nick'
+	print 'Usage: ' + sys.argv[0] + ' server port channels nick'
 else:
+	botcmd.init()
 	keych = Channel()
 	logch = Channel()
 	Keyhandler(keych).start()

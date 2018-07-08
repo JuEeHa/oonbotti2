@@ -6,7 +6,7 @@ import time
 
 concmd=['/q', '/lt', '/st', '/lg', '/lm', '/sm']
 
-blacklist = ['bslsk05']
+blacklist = []
 
 doctor = eliza.eliza()
 
@@ -65,9 +65,6 @@ class Cron(threading.Thread):
 			
 			for fn in torun:
 				fn()
-
-cron=Cron()
-cron.start()
 
 def loadmessages():
 	global msgs, msgslock
@@ -177,8 +174,12 @@ def savetrusted():
 	f.close
 	trustedlock.release()
 	
-loadtrusted()
-loadgods()
+def init():
+	global cron
+	cron = Cron()
+	cron.start()
+	loadtrusted()
+	loadgods()
 
 def chmode(irc, chan, nick, mode, args):
 	set_unset = mode[0]
