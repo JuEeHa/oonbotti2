@@ -1,5 +1,36 @@
 Not that ugly IRC bot. In fact, ircbot.py is quite nice.
-eliza.py is not part of oonbotti2, and is under a BSD-style license. Original can be found at http://www.jezuk.co.uk/cgi-bin/view/software/eliza
+(3 years later) Actually, I take that one back. That's quite horrible.
+
+eliza.py is not part of oonbotti2, and is under a BSD-style license. Original
+can be found at http://www.jezuk.co.uk/cgi-bin/view/software/eliza
+
+Setup
+-----
+You should create following files:
+
+trusted.txt: People that have access to #op and friends. Format is
+             "##ingsoc nortti\n##ingsoc foobar\n"
+gods.txt: Same as above, except can't be #untrust'ed
+msgs.txt: Messages that haven't been delivered. Leave it empty
+startcmd.txt: Raw IRC messages to send to the server after USER and NICK. Used
+              to authenticate with NickServ
+
+Run `python2 irc.freenode.net 6667 '##ingsoc' o2-test`
+
+Console commands
+----------------
+/j <chan>: Join a channel
+/m <recipient> <message>: Send a message to recipient
+/q: Quit
+
+/lt: Load trusted.txt
+/st: Save trusted.txt (never used, it's saved automatically)
+/lg: Load gods.txt
+/lm: Load msgs.txt
+/sm: Save msgs.txt (never used, it's saved automatically)
+
+You can also run arbitrary IRC commands by prefixing them with '/'. The command
+is converted to upper case, but line is otherwise sent raw
 
 Contributions
 -------------
