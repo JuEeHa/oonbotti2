@@ -9,7 +9,8 @@ Setup
 You should create following files:
 
 trusted.txt: People that have access to #op and friends. Format is
-             "##ingsoc nortti\n##ingsoc foobar\n"
+             "##ingsoc nortti\n##ingsoc foobar\n". The account names are case
+             sensitive.
 gods.txt: Same as above, except can't be #untrust'ed
 msgs.txt: Messages that haven't been delivered. Leave it empty
 startcmd.txt: Raw IRC messages to send to the server after USER and NICK. Used
