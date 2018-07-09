@@ -15,7 +15,7 @@ msgs.txt: Messages that haven't been delivered. Leave it empty
 startcmd.txt: Raw IRC messages to send to the server after USER and NICK. Used
               to authenticate with NickServ
 
-Run `python2 irc.freenode.net 6667 '##ingsoc' o2-test`
+Run `python2 ircbot.py irc.freenode.net 6667 '##ingsoc' o2-test`
 
 Console commands
 ----------------
