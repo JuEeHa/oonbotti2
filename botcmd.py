@@ -433,7 +433,8 @@ def parse((line, irc)):
 			cmdline.remove('')
 		
 		# #chan: channel override prefix
-		if matchcmd(cmdline, '#chan'):
+		# Don't allow this in private messages for more transparent bot usage
+		if matchcmd(cmdline, '#chan') and chan != nick:
 			if matchcmd(cmdline, '#chan', 'channel {command}'):
 				newchan, newcmdline = parsecmd(cmdline, 'channel {command}')
 				newcmdline = newcmdline.split(' ')
