@@ -456,6 +456,12 @@ def parse((line, irc)):
 		elif matchcmd(cmdline, '#voice'):
 			args = parsecmd(cmdline, '{args}')
 			chmode(irc, chan, nick, '+v', args.split(' '))
+		elif matchcmd(cmdline, '#quiet'):
+			arg = parsecmd(cmdline, 'nick')
+			chmode(irc, chan, nick, '+q', [arg + '!*@*'])
+		elif matchcmd(cmdline, '#dequiet'):
+			arg = parsecmd(cmdline, 'nick')
+			chmode(irc, chan, nick, '-q', [arg + '!*@*'])
 		elif matchcmd(cmdline, '#devoice'):
 			args = parsecmd(cmdline, '{args}')
 			chmode(irc, chan, nick, '-v', args.split(' '))
@@ -653,6 +659,8 @@ def usage(cmd, message = True):
 	         '#deop': '[nick]',
 	         '#voice': '[nick]',
 	         '#devoice': '[nick]',
+	         '#quiet': 'nick',
+	         '#dequiet': 'nick',
 	         '#kick': 'nick [reason]',
 	         '#src': '',
 	         '#msg': 'nick message',
@@ -677,6 +685,8 @@ def help(cmd):
 	            '#deop': 'remove your/nick\'s op rights',
 	            '#voice': 'give nick or yourself voice in case you are trusted by oonbotti2 and identified with NickServ',
 	            '#devoice': 'remove your or nick\'s voice in case you are trusted by oonbotti2 and identified with NickServ',
+	            '#quiet': 'give +q to nick!*@*',
+	            '#dequiet': 'remove +q from nick!*@*',
 	            '#kick': 'kicks nick with specified reason',
 	            '#src': 'paste a link to oonbotti2\'s git repo',
 	            '#msg': 'send a message to nick',
@@ -688,7 +698,7 @@ def help(cmd):
 	            '#help': 'give short info of command or list commands'}
 	
 	if cmd=='':
-		return '#echo #op #deop #voice #devoice #kick #src #msg #trusted? #trust #untrust #ls-trusted #chan #help'
+		return '#echo #op #deop #voice #devoice #quiet #dequiet #kick #src #msg #trusted? #trust #untrust #ls-trusted #chan #help'
 	elif cmd=='me':
 		return 'I shall.'
 	elif cmd in helptext:
