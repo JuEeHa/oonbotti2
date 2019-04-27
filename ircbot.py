@@ -107,6 +107,7 @@ class Connhandler(threading.Thread):
 			self.send(i)
 		f.close()
 		
+		time.sleep(10) # Wait for nickserv auth to take effect
 		for i in self.chan.split(' '):
 			self.send('JOIN %s' % i)
 		
